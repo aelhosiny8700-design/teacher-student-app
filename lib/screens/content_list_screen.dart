@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart' as intl;
+import '../models/user_model.dart';
+import '../models/content_model.dart';
+import '../services/firestore_service.dart';
+
+class ContentListScreen extends StatelessWidget {
+  final AppUser user;
+  const ContentListScreen({super.key, required this.user});
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'image':
+        return Icons.image;
+      case 'video':
+        return Icons.videocam;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Color _colorForType(String type) {
+    switch (type) {
+      case 'image':
+        return Colors.purple;
+      case 'video':
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  Future<void> _openContent(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final service = FirestoreService();
+
+    return StreamBuilder<List<ContentItem>>(
+      stream: service.getContentStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'مفيش محتوى لسه.\nهيظهر هنا أي ملفات أو صور أو فيديوهات يرفعها المدرس.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 15),
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: _colorForType(item.type).withOpacity(0.15),
+                  child: Icon(_iconForType(item.type), color: _colorForType(item.type)),
+                ),
+                title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  '${item.description}\n${item.uploadedBy} • ${intl.DateFormat('d/M/yyyy').format(item.createdAt)}',
+                ),
+                isThreeLine: true,
+                trailing: user.isTeacher
+                    ? IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => service.deleteContent(item.id),
+                      )
+                    : const Icon(Icons.open_in_new),
+                onTap: () => _openContent(item.url),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
