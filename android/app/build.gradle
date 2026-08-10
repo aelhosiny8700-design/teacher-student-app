@@ -48,14 +48,16 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
- buildTypes {
+    }
+
+    buildTypes {
         release {
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
     }
-    }
+}
 
 flutter {
     source '../..'
