@@ -14,7 +14,7 @@ class AuthService {
     required String name,
     required String email,
     required String password,
-    required String role, // "teacher" or "student"
+    required String role,
   }) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -35,7 +35,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
-      return 'حصل خطأ غير متوقع، حاول تاني';
+      return 'خطأ: $e';
     }
   }
 
@@ -53,7 +53,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
-      return 'حصل خطأ غير متوقع، حاول تاني';
+      return 'خطأ: $e';
     }
   }
 
@@ -77,7 +77,7 @@ class AuthService {
       case 'invalid-email':
         return 'الإيميل مش صحيح';
       case 'weak-password':
-        return 'كلمة السر لازم تكون 6 حروف على الأقل';
+        return 'كلمة السر لازم تكون على حروف 6 الأقل';
       case 'user-not-found':
         return 'الحساب ده مش موجود';
       case 'wrong-password':
@@ -85,7 +85,11 @@ class AuthService {
       case 'invalid-credential':
         return 'الإيميل أو كلمة السر غلط';
       default:
-        return 'حصل خطأ، حاول تاني';
+        return 'خطأ: $code';
     }
   }
 }
+التغيير الوحيد الحقيقي:
+سطر catch (e) { return 'خطأ: $e'; } بدل الرسالة العامة (مرتين، في signUp وsignIn)
+وكمان _mapError في حالة default بقت بتوري كود الخطأ نفسه بدل نص عام
+بعد ما تستبدل الملف: Commit → Start new build (Android APK Build) → حمّل ونصّب → جرب تسجيل الدخول تاني وابعتلي رسالة الخطأ الكاملة اللي هتظهر.
