@@ -9,7 +9,6 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
-  // تسجيل حساب جديد (مدرس أو طالب)
   Future<String?> signUp({
     required String name,
     required String email,
@@ -31,7 +30,7 @@ class AuthService {
       );
 
       await _db.collection('users').doc(uid).set(newUser.toMap());
-      return null; // مفيش خطأ
+      return null;
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
@@ -39,7 +38,6 @@ class AuthService {
     }
   }
 
-  // تسجيل الدخول
   Future<String?> signIn({
     required String email,
     required String password,
@@ -61,7 +59,6 @@ class AuthService {
     await _auth.signOut();
   }
 
-  // جلب بيانات المستخدم الحالي (اسمه، دوره: مدرس/طالب)
   Future<AppUser?> getUserData(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
     if (doc.exists) {
@@ -77,7 +74,7 @@ class AuthService {
       case 'invalid-email':
         return 'الإيميل مش صحيح';
       case 'weak-password':
-        return 'كلمة السر لازم تكون على حروف 6 الأقل';
+        return 'كلمة السر لازم تكون 6 حروف على الأقل';
       case 'user-not-found':
         return 'الحساب ده مش موجود';
       case 'wrong-password':
@@ -89,7 +86,34 @@ class AuthService {
     }
   }
 }
-التغيير الوحيد الحقيقي:
-سطر catch (e) { return 'خطأ: $e'; } بدل الرسالة العامة (مرتين، في signUp وsignIn)
-وكمان _mapError في حالة default بقت بتوري كود الخطأ نفسه بدل نص عام
-بعد ما تستبدل الملف: Commit → Start new build (Android APK Build) → حمّل ونصّب → جرب تسجيل الدخول تاني وابعتلي رسالة الخطأ الكاملة اللي هتظهر.
+5. انزل تحت واضغط "Commit changes" (الزرار الأخضر) → تأكيد
+الجزء الثاني: تعديل صلاحيات قاعدة البيانات (Firestore)
+1. افتح تاب/نافذة جديدة وروح على:
+console.firebase.google.com
+2. اضغط على مشروعك "Ahmed fikry"
+3. من القايمة الجانبية على اليسار، دور على "Firestore Database" واضغط عليه
+4. فوق هتلاقي تابات (Data / Rules / Indexes...) — اضغط على "Rules"
+5. هتلاقي صندوق فيه كود — امسحه كله والصق ده بدله:
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+6. اضغط زرار "Publish" (المفروض يكون فوق على اليمين)
+الجزء الثالث: بناء APK جديد
+1. روح على Codemagic (codemagic.io)
+2. افتح تطبيق teacher-student-app
+3. اضغط "Start new build"
+4. اختار workflow: "Android APK Build"
+5. اضغط "Start new build" تاني للتأكيد
+الجزء الرابع: التجربة
+استنى الـ build يخلص (2-5 دقايق)
+حمّل ملف app-release.apk
+احذف التطبيق القديم من الموبايل
+ثبّت الجديد
+جرب تسجيل دخول أو عمل حساب جديد
+ابعتلي سكرين شوت من رسالة الخطأ اللي هتظهر (لو ظهرت)
+ابدأ بالجزء الأول وقولي أول ما تخلصه.
