@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'student_home.dart';
+import 'teacher_home.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -44,12 +46,46 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
 
-    if (mounted) {
+    if (!mounted) return;
+
+    if (error != null) {
       setState(() {
         _loading = false;
         _error = error;
       });
+      return;
     }
+
+    // نجح تسجيل الدخول أو إنشاء الحساب - نجيب بيانات المستخدم كاملة
+    final uid = _authService.currentUser?.uid;
+    if (uid == null) {
+      setState(() {
+        _loading = false;
+        _error = 'حصل خطأ غير متوقع، حاول تاني';
+      });
+      return;
+    }
+
+    final userData = await _authService.getUserData(uid);
+
+    if (!mounted) return;
+
+    if (userData == null) {
+      setState(() {
+        _loading = false;
+        _error = 'تعذر تحميل بيانات المستخدم';
+      });
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => userData.role == 'teacher'
+            ? TeacherHome(user: userData)
+            : StudentHome(user: userData),
+      ),
+    );
   }
 
   @override
