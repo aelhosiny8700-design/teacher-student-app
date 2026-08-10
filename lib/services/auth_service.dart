@@ -86,34 +86,3 @@ class AuthService {
     }
   }
 }
-5. انزل تحت واضغط "Commit changes" (الزرار الأخضر) → تأكيد
-الجزء الثاني: تعديل صلاحيات قاعدة البيانات (Firestore)
-1. افتح تاب/نافذة جديدة وروح على:
-console.firebase.google.com
-2. اضغط على مشروعك "Ahmed fikry"
-3. من القايمة الجانبية على اليسار، دور على "Firestore Database" واضغط عليه
-4. فوق هتلاقي تابات (Data / Rules / Indexes...) — اضغط على "Rules"
-5. هتلاقي صندوق فيه كود — امسحه كله والصق ده بدله:
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-6. اضغط زرار "Publish" (المفروض يكون فوق على اليمين)
-الجزء الثالث: بناء APK جديد
-1. روح على Codemagic (codemagic.io)
-2. افتح تطبيق teacher-student-app
-3. اضغط "Start new build"
-4. اختار workflow: "Android APK Build"
-5. اضغط "Start new build" تاني للتأكيد
-الجزء الرابع: التجربة
-استنى الـ build يخلص (2-5 دقايق)
-حمّل ملف app-release.apk
-احذف التطبيق القديم من الموبايل
-ثبّت الجديد
-جرب تسجيل دخول أو عمل حساب جديد
-ابعتلي سكرين شوت من رسالة الخطأ اللي هتظهر (لو ظهرت)
-ابدأ بالجزء الأول وقولي أول ما تخلصه.
