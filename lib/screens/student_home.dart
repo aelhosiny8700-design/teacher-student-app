@@ -4,7 +4,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'content_list_screen.dart';
 import 'quiz_list_screen.dart';
-import 'chat_screen.dart';
+import 'chat_hub_screen.dart';
 import 'teacher_home.dart' show AppColors;
 
 class StudentHome extends StatefulWidget {
