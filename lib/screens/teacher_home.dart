@@ -7,6 +7,7 @@ import 'upload_content_screen.dart';
 import 'quiz_list_screen.dart';
 import 'quiz_create_screen.dart';
 import 'chat_hub_screen.dart';
+import 'teacher_profile_screen.dart';
 
 // ألوان الهوية الأساسية للتطبيق
 class AppColors {
@@ -59,6 +60,18 @@ class _TeacherHomeState extends State<TeacherHome> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.vpn_key_outlined),
+            tooltip: 'كود الدعوة',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TeacherProfileScreen(teacher: widget.user),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'تسجيل الخروج',
@@ -494,3 +507,5 @@ class _RecentContentList extends StatelessWidget {
     );
   }
 }
+
+
