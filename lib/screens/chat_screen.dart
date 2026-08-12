@@ -7,10 +7,8 @@ import '../services/firestore_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final AppUser user;
-
   final String chatId;
   final String title;
-
   final bool isGeneral;
   final String? stage;
 
@@ -24,37 +22,25 @@ class ChatScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatScreen> createState() =>
-      _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState
-    extends State<ChatScreen> {
-  final _controller =
+class _ChatScreenState extends State<ChatScreen> {
+  final TextEditingController _controller =
       TextEditingController();
 
-  final _scrollController =
+  final ScrollController _scrollController =
       ScrollController();
 
-  final _service =
+  final FirestoreService _service =
       FirestoreService();
 
   bool _sending = false;
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-
-    super.dispose();
-  }
-
   Future<void> _sendMessage() async {
-    final text =
-        _controller.text.trim();
+    final text = _controller.text.trim();
 
-    if (text.isEmpty ||
-        _sending) {
+    if (text.isEmpty || _sending) {
       return;
     }
 
@@ -63,66 +49,35 @@ class _ChatScreenState
     });
 
     try {
-      final message =
-          AnnouncementMessage(
-        id: '',
-        chatId: widget.chatId,
-        text: text,
-        senderName:
-            widget.user.name,
-        senderId:
-            widget.user.uid,
-        isAnnouncement:
-            widget.isGeneral &&
-                widget.user.isTeacher,
-        chatType:
-            widget.isGeneral
-                ? 'general'
-                : 'private',
-        stage: widget.stage,
-        createdAt:
-            DateTime.now(),
+      await _service.sendMessage(
+        AnnouncementMessage(
+          id: '',
+          chatId: widget.chatId,
+          text: text,
+          senderName: widget.user.name,
+          senderId: widget.user.uid,
+          isAnnouncement:
+              widget.isGeneral && widget.user.isTeacher,
+          stage: widget.stage,
+          createdAt: DateTime.now(),
+        ),
       );
-
-      await _service
-          .sendMessage(message);
 
       _controller.clear();
 
-      if (!mounted) return;
-
-      await Future.delayed(
-        const Duration(
-          milliseconds: 200,
-        ),
-      );
-
-      if (_scrollController
-          .hasClients) {
-        await _scrollController
-            .animateTo(
-          _scrollController
-              .position
-              .maxScrollExtent,
-          duration:
-              const Duration(
-            milliseconds: 250,
-          ),
-          curve:
-              Curves.easeOut,
-        );
+      if (mounted) {
+        FocusScope.of(context).unfocus();
       }
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            'فشل إرسال الرسالة: $e',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر إرسال الرسالة: $e',
+            ),
           ),
-        ),
-      );
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -133,30 +88,35 @@ class _ChatScreenState
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         backgroundColor:
             const Color(0xFF2E5AAC),
-        foregroundColor:
-            Colors.white,
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
           Expanded(
             child: StreamBuilder<
                 List<AnnouncementMessage>>(
-              stream: _service
-                  .getMessagesStream(
+              stream: _service.getMessagesStream(
                 widget.chatId,
               ),
-              builder:
-                  (context, snapshot) {
-                if (snapshot
-                        .connectionState ==
-                    ConnectionState
-                        .waiting) {
+              builder: (
+                context,
+                snapshot,
+              ) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const Center(
                     child:
                         CircularProgressIndicator(),
@@ -165,10 +125,14 @@ class _ChatScreenState
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text(
-                      'حدث خطأ في تحميل الرسائل\n${snapshot.error}',
-                      textAlign:
-                          TextAlign.center,
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(20),
+                      child: Text(
+                        'حدث خطأ في تحميل الرسائل\n${snapshot.error}',
+                        textAlign:
+                            TextAlign.center,
+                      ),
                     ),
                   );
                 }
@@ -180,149 +144,169 @@ class _ChatScreenState
                   return Center(
                     child: Text(
                       widget.isGeneral
-                          ? 'مفيش رسائل في شات المرحلة لسه'
-                          : 'ابدأ المحادثة مع الطالب/المدرس',
+                          ? 'لا توجد رسائل في الشات العام'
+                          : 'ابدأ المحادثة',
                       style:
                           const TextStyle(
-                        color:
-                            Colors.grey,
+                        color: Colors.grey,
                       ),
                     ),
                   );
                 }
 
-                WidgetsBinding
-                    .instance
-                    .addPostFrameCallback(
-                  (_) {
-                    if (_scrollController
-                        .hasClients) {
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) {
+                  if (_scrollController
+                      .hasClients) {
+                    _scrollController.jumpTo(
                       _scrollController
-                          .jumpTo(
-                        _scrollController
-                            .position
-                            .maxScrollExtent,
-                      );
-                    }
-                  },
-                );
+                          .position
+                          .maxScrollExtent,
+                    );
+                  }
+                });
 
                 return ListView.builder(
                   controller:
                       _scrollController,
                   padding:
-                      const EdgeInsets.all(
-                          12),
+                      const EdgeInsets.all(12),
                   itemCount:
                       messages.length,
                   itemBuilder:
                       (context, index) {
-                    final msg =
+                    final message =
                         messages[index];
 
                     final isMe =
-                        msg.senderId ==
+                        message.senderId ==
                             widget.user.uid;
 
-                    return _buildBubble(
-                      msg,
-                      isMe,
+                    return _MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                      isGeneral:
+                          widget.isGeneral,
                     );
                   },
                 );
               },
             ),
           ),
-
-          SafeArea(
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child:
-                        TextField(
-                      controller:
-                          _controller,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction:
-                          TextInputAction
-                              .send,
-                      decoration:
-                          InputDecoration(
-                        hintText:
-                            widget.isGeneral
-                                ? 'اكتب رسالة للمرحلة...'
-                                : 'اكتب رسالتك...',
-                        border:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                                      24),
-                        ),
-                        contentPadding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                      ),
-                      onSubmitted:
-                          (_) =>
-                              _sendMessage(),
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 8,
-                  ),
-
-                  CircleAvatar(
-                    backgroundColor:
-                        const Color(
-                            0xFF2E5AAC),
-                    child:
-                        IconButton(
-                      icon: _sending
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child:
-                                  CircularProgressIndicator(
-                                color: Colors
-                                    .white,
-                                strokeWidth:
-                                    2,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.send,
-                              color: Colors
-                                  .white,
-                            ),
-                      onPressed:
-                          _sending
-                              ? null
-                              : _sendMessage,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildInput(),
         ],
       ),
     );
   }
 
-  Widget _buildBubble(
-    AnnouncementMessage msg,
-    bool isMe,
-  ) {
-    if (msg.isAnnouncement) {
+  Widget _buildInput() {
+    final hint = widget.isGeneral
+        ? widget.user.isTeacher
+            ? 'اكتب تنبيه للطلاب...'
+            : 'اكتب رسالتك في الشات العام...'
+        : 'اكتب رسالتك...';
+
+    return SafeArea(
+      child: Container(
+        padding:
+            const EdgeInsets.fromLTRB(
+          8,
+          8,
+          8,
+          8,
+        ),
+        decoration:
+            const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller:
+                    _controller,
+                textDirection:
+                    TextDirection.rtl,
+                minLines: 1,
+                maxLines: 4,
+                decoration:
+                    InputDecoration(
+                  hintText: hint,
+                  border:
+                      OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      24,
+                    ),
+                  ),
+                  contentPadding:
+                      const EdgeInsets
+                          .symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                ),
+                onSubmitted:
+                    (_) => _sendMessage(),
+              ),
+            ),
+            const SizedBox(
+              width: 8,
+            ),
+            CircleAvatar(
+              backgroundColor:
+                  const Color(0xFF2E5AAC),
+              child: IconButton(
+                onPressed:
+                    _sending
+                        ? null
+                        : _sendMessage,
+                icon: _sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child:
+                            CircularProgressIndicator(
+                          color:
+                              Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.send,
+                        color:
+                            Colors.white,
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  final AnnouncementMessage message;
+  final bool isMe;
+  final bool isGeneral;
+
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.isGeneral,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isGeneral &&
+        message.isAnnouncement) {
       return Container(
         width: double.infinity,
         margin:
@@ -330,14 +314,13 @@ class _ChatScreenState
           vertical: 6,
         ),
         padding:
-            const EdgeInsets.all(12),
+            const EdgeInsets.all(14),
         decoration:
             BoxDecoration(
           color:
               const Color(0xFFFFF3CD),
           borderRadius:
-              BorderRadius.circular(
-                  10),
+              BorderRadius.circular(14),
           border: Border.all(
             color:
                 const Color(0xFFFFE69C),
@@ -345,8 +328,7 @@ class _ChatScreenState
         ),
         child: Column(
           crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
+              CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -357,10 +339,11 @@ class _ChatScreenState
                       Color(0xFF856404),
                 ),
                 const SizedBox(
-                    width: 6),
+                  width: 6,
+                ),
                 Expanded(
                   child: Text(
-                    'تنبيه من ${msg.senderName}',
+                    'تنبيه من ${message.senderName}',
                     style:
                         const TextStyle(
                       fontWeight:
@@ -372,20 +355,22 @@ class _ChatScreenState
                 ),
               ],
             ),
-
             const SizedBox(
-                height: 6),
-
-            Text(msg.text),
-
+              height: 8,
+            ),
+            Text(
+              message.text,
+              textDirection:
+                  TextDirection.rtl,
+            ),
             const SizedBox(
-                height: 4),
-
+              height: 6,
+            ),
             Text(
               intl.DateFormat(
                 'd/M - h:mm a',
               ).format(
-                msg.createdAt,
+                message.createdAt,
               ),
               style:
                   const TextStyle(
@@ -404,6 +389,14 @@ class _ChatScreenState
           ? Alignment.centerRight
           : Alignment.centerLeft,
       child: Container(
+        constraints:
+            BoxConstraints(
+          maxWidth:
+              MediaQuery.of(context)
+                      .size
+                      .width *
+                  .78,
+        ),
         margin:
             const EdgeInsets.symmetric(
           vertical: 4,
@@ -413,63 +406,52 @@ class _ChatScreenState
           horizontal: 14,
           vertical: 10,
         ),
-        constraints:
-            BoxConstraints(
-          maxWidth:
-              MediaQuery.of(context)
-                      .size
-                      .width *
-                  0.78,
-        ),
         decoration:
             BoxDecoration(
           color: isMe
               ? const Color(
-                  0xFF2E5AAC)
+                  0xFF2E5AAC,
+                )
               : Colors.grey.shade200,
           borderRadius:
               BorderRadius.circular(
-                  14),
+            16,
+          ),
         ),
         child: Column(
           crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
+              CrossAxisAlignment.start,
           children: [
             if (!isMe)
               Text(
-                msg.senderName,
-                style: TextStyle(
+                message.senderName,
+                style:
+                    const TextStyle(
                   fontSize: 11,
                   fontWeight:
                       FontWeight.bold,
-                  color: Colors
-                      .grey
-                      .shade700,
+                  color:
+                      Colors.grey,
                 ),
               ),
-
-            if (!isMe)
-              const SizedBox(
-                  height: 3),
-
             Text(
-              msg.text,
+              message.text,
+              textDirection:
+                  TextDirection.rtl,
               style: TextStyle(
                 color: isMe
                     ? Colors.white
                     : Colors.black87,
               ),
             ),
-
             const SizedBox(
-                height: 3),
-
+              height: 4,
+            ),
             Text(
               intl.DateFormat(
                 'h:mm a',
               ).format(
-                msg.createdAt,
+                message.createdAt,
               ),
               style: TextStyle(
                 fontSize: 9,
