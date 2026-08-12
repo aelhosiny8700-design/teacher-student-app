@@ -13,8 +13,23 @@ class QuizListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = FirestoreService();
 
+    final teacherUid = user.isTeacher ? user.uid : (user.linkedTeacherUid ?? '');
+
+    if (teacherUid.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'لا يوجد معلم مرتبط بحسابك حاليًا.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey, fontSize: 15),
+          ),
+        ),
+      );
+    }
+
     return StreamBuilder<List<Quiz>>(
-      stream: service.getQuizzesStream(),
+      stream: service.getQuizzesStream(teacherUid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -72,3 +87,5 @@ class QuizListScreen extends StatelessWidget {
     );
   }
 }
+
+
