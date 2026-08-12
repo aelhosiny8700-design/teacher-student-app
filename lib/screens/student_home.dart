@@ -9,7 +9,11 @@ import 'teacher_home.dart' show AppColors;
 
 class StudentHome extends StatefulWidget {
   final AppUser user;
-  const StudentHome({super.key, required this.user});
+
+  const StudentHome({
+    super.key,
+    required this.user,
+  });
 
   @override
   State<StudentHome> createState() => _StudentHomeState();
@@ -24,7 +28,10 @@ class _StudentHomeState extends State<StudentHome> {
       _StudentDashboardTab(user: widget.user),
       ContentListScreen(user: widget.user),
       QuizListScreen(user: widget.user),
-      ChatScreen(user: widget.user),
+
+      // الشات الجديد:
+      // شات عام للمرحلة + شات خاص مع المدرس
+      ChatHubScreen(user: widget.user),
     ];
 
     return Scaffold(
@@ -38,11 +45,17 @@ class _StudentHomeState extends State<StudentHome> {
           children: [
             Text(
               'أهلاً ${widget.user.name}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const Text(
               'لوحة تحكم الطالب',
-              style: TextStyle(fontSize: 12, color: Colors.white70),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
             ),
           ],
         ),
@@ -59,28 +72,42 @@ class _StudentHomeState extends State<StudentHome> {
       body: pages[_index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() => _index = i);
+        },
         backgroundColor: Colors.white,
         indicatorColor: AppColors.primary.withOpacity(0.12),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard, color: AppColors.primary),
+            selectedIcon: Icon(
+              Icons.dashboard,
+              color: AppColors.primary,
+            ),
             label: 'الرئيسية',
           ),
           NavigationDestination(
             icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder, color: AppColors.primary),
+            selectedIcon: Icon(
+              Icons.folder,
+              color: AppColors.primary,
+            ),
             label: 'المحتوى',
           ),
           NavigationDestination(
             icon: Icon(Icons.quiz_outlined),
-            selectedIcon: Icon(Icons.quiz, color: AppColors.primary),
+            selectedIcon: Icon(
+              Icons.quiz,
+              color: AppColors.primary,
+            ),
             label: 'الاختبارات',
           ),
           NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble, color: AppColors.primary),
+            selectedIcon: Icon(
+              Icons.chat_bubble,
+              color: AppColors.primary,
+            ),
             label: 'الرسائل',
           ),
         ],
@@ -89,10 +116,13 @@ class _StudentHomeState extends State<StudentHome> {
   }
 }
 
-/// تبويب الرئيسية للطالب: تقدمه + وصول سريع
+/// تبويب الرئيسية للطالب
 class _StudentDashboardTab extends StatelessWidget {
   final AppUser user;
-  const _StudentDashboardTab({required this.user});
+
+  const _StudentDashboardTab({
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -100,17 +130,26 @@ class _StudentDashboardTab extends StatelessWidget {
       color: AppColors.primary,
       onRefresh: () async {},
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          32,
+        ),
         children: [
           _WelcomeBanner(name: user.name),
           const SizedBox(height: 20),
           _ProgressRow(uid: user.uid),
           const SizedBox(height: 24),
-          const _SectionTitle(title: 'الوصول السريع'),
+          const _SectionTitle(
+            title: 'الوصول السريع',
+          ),
           const SizedBox(height: 12),
           _QuickActionsGrid(user: user),
           const SizedBox(height: 24),
-          const _SectionTitle(title: 'آخر نتائجك'),
+          const _SectionTitle(
+            title: 'آخر نتائجك',
+          ),
           const SizedBox(height: 12),
           _RecentResultsList(uid: user.uid),
         ],
@@ -121,7 +160,10 @@ class _StudentDashboardTab extends StatelessWidget {
 
 class _WelcomeBanner extends StatelessWidget {
   final String name;
-  const _WelcomeBanner({required this.name});
+
+  const _WelcomeBanner({
+    required this.name,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -130,13 +172,20 @@ class _WelcomeBanner extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [
+            AppColors.primary,
+            AppColors.primaryDark,
+          ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 8)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
         ],
       ),
       child: Row(
@@ -147,12 +196,19 @@ class _WelcomeBanner extends StatelessWidget {
               children: [
                 Text(
                   'مرحبًا بيك يا $name 👋',
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'استمر في مذاكرتك وحل الاختبارات عشان تحسن مستواك',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -163,7 +219,11 @@ class _WelcomeBanner extends StatelessWidget {
               color: Colors.white.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.emoji_events, color: Colors.white, size: 32),
+            child: const Icon(
+              Icons.emoji_events,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
         ],
       ),
@@ -173,30 +233,44 @@ class _WelcomeBanner extends StatelessWidget {
 
 class _ProgressRow extends StatelessWidget {
   final String uid;
-  const _ProgressRow({required this.uid});
+
+  const _ProgressRow({
+    required this.uid,
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('quiz_results')
-          .where('studentUid', isEqualTo: uid)
+          .where(
+            'studentUid',
+            isEqualTo: uid,
+          )
           .snapshots(),
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
         final total = docs.length;
+
         double avg = 0;
+
         if (total > 0) {
           double sum = 0;
+
           for (final d in docs) {
             final data = d.data() as Map<String, dynamic>;
-            final score = (data['score'] ?? 0);
-            final maxScore = (data['maxScore'] ?? 1);
-            if (maxScore is num && maxScore > 0) {
-              sum += (score as num) / maxScore;
+
+            final score = data['score'] ?? 0;
+            final maxScore = data['maxScore'] ?? 1;
+
+            if (score is num &&
+                maxScore is num &&
+                maxScore > 0) {
+              sum += score / maxScore;
             }
           }
-          avg = total > 0 ? (sum / total) * 100 : 0;
+
+          avg = (sum / total) * 100;
         }
 
         return Row(
@@ -206,7 +280,10 @@ class _ProgressRow extends StatelessWidget {
                 icon: Icons.check_circle,
                 color: const Color(0xFF43A047),
                 label: 'اختبارات مُنجزة',
-                value: snapshot.connectionState == ConnectionState.waiting ? '—' : '$total',
+                value: snapshot.connectionState ==
+                        ConnectionState.waiting
+                    ? '—'
+                    : '$total',
               ),
             ),
             const SizedBox(width: 12),
@@ -215,7 +292,8 @@ class _ProgressRow extends StatelessWidget {
                 icon: Icons.trending_up,
                 color: const Color(0xFF2E5AAC),
                 label: 'متوسط الدرجات',
-                value: snapshot.connectionState == ConnectionState.waiting
+                value: snapshot.connectionState ==
+                        ConnectionState.waiting
                     ? '—'
                     : '${avg.toStringAsFixed(0)}%',
               ),
@@ -243,28 +321,55 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+      padding: const EdgeInsets.symmetric(
+        vertical: 18,
+        horizontal: 12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 22),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey,
+                  ),
+                ),
               ],
             ),
           ),
@@ -276,20 +381,30 @@ class _StatCard extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   final String title;
-  const _SectionTitle({required this.title});
+
+  const _SectionTitle({
+    required this.title,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1E293B),
+      ),
     );
   }
 }
 
 class _QuickActionsGrid extends StatelessWidget {
   final AppUser user;
-  const _QuickActionsGrid({required this.user});
+
+  const _QuickActionsGrid({
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -298,25 +413,65 @@ class _QuickActionsGrid extends StatelessWidget {
         icon: Icons.menu_book,
         color: const Color(0xFF2E5AAC),
         label: 'المحتوى الدراسي',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ContentListScreen(user: user))),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ContentListScreen(
+                user: user,
+              ),
+            ),
+          );
+        },
       ),
       _QuickAction(
         icon: Icons.quiz,
         color: const Color(0xFFAB47BC),
         label: 'حل اختبار',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuizListScreen(user: user))),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => QuizListScreen(
+                user: user,
+              ),
+            ),
+          );
+        },
       ),
+
+      // الشات الجديد:
+      // عام للمرحلة + خاص مع المدرس
       _QuickAction(
         icon: Icons.chat_bubble,
         color: const Color(0xFF43A047),
         label: 'اسأل المعلم',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(user: user))),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatHubScreen(
+                user: user,
+              ),
+            ),
+          );
+        },
       ),
+
       _QuickAction(
         icon: Icons.emoji_events,
         color: const Color(0xFFFB8C00),
         label: 'نتائجي',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuizListScreen(user: user))),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => QuizListScreen(
+                user: user,
+              ),
+            ),
+          );
+        },
       ),
     ];
 
@@ -354,25 +509,42 @@ class _QuickAction extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             boxShadow: const [
-              BoxShadow(color: AppColors.cardShadow, blurRadius: 8, offset: Offset(0, 3)),
+              BoxShadow(
+                color: AppColors.cardShadow,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
             ],
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: color, size: 20),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -386,25 +558,41 @@ class _QuickAction extends StatelessWidget {
 
 class _RecentResultsList extends StatelessWidget {
   final String uid;
-  const _RecentResultsList({required this.uid});
+
+  const _RecentResultsList({
+    required this.uid,
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('quiz_results')
-          .where('studentUid', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
+          .where(
+            'studentUid',
+            isEqualTo: uid,
+          )
+          .orderBy(
+            'createdAt',
+            descending: true,
+          )
           .limit(4)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            child: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+              ),
+            ),
           );
         }
+
         final docs = snapshot.data?.docs ?? [];
+
         if (docs.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(24),
@@ -413,23 +601,38 @@ class _RecentResultsList extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Center(
-              child: Text('لسه مفيش نتائج اختبارات', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'لسه مفيش نتائج اختبارات',
+                style: TextStyle(
+                  color: Colors.grey,
+                ),
+              ),
             ),
           );
         }
+
         return Column(
           children: docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data =
+                doc.data() as Map<String, dynamic>;
+
             final score = data['score'] ?? 0;
             final maxScore = data['maxScore'] ?? 0;
+
             return Container(
-              margin: const EdgeInsets.only(bottom: 10),
+              margin: const EdgeInsets.only(
+                bottom: 10,
+              ),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: const [
-                  BoxShadow(color: AppColors.cardShadow, blurRadius: 8, offset: Offset(0, 3)),
+                  BoxShadow(
+                    color: AppColors.cardShadow,
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
                 ],
               ),
               child: Row(
@@ -437,22 +640,37 @@ class _RecentResultsList extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
+                      color:
+                          AppColors.accent.withOpacity(0.15),
+                      borderRadius:
+                          BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.emoji_events, color: AppColors.accent, size: 20),
+                    child: const Icon(
+                      Icons.emoji_events,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      (data['quizTitle'] ?? 'اختبار').toString(),
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      (data['quizTitle'] ??
+                              'اختبار')
+                          .toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Text(
                     '$score / $maxScore',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ],
               ),
