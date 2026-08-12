@@ -74,7 +74,14 @@ class AuthService {
       await _db.collection('users').doc(uid).set(newUser.toMap());
 
       if (role == 'student' && status == 'pending') {
-        await _auth.signOut();
+        // نأخر الـ signOut شوية عشان نضمن إن الرسالة تتعرض
+        // على الشاشة الأول قبل ما AuthGate يعمل rebuild كامل بسبب
+        // تغيّر authStateChanges. من غير التأخير ده، الشاشة بترجع
+        // لصفحة تسجيل الدخول قبل ما setState يكمل، فالمستخدم
+        // يحس إن التطبيق "دخل وخرج" من غير أي رسالة.
+        Future.delayed(const Duration(milliseconds: 800), () {
+          _auth.signOut();
+        });
         return 'تم إنشاء حسابك بنجاح، وهيتم تفعيله بعد موافقة المعلم';
       }
 
