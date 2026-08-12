@@ -6,7 +6,11 @@ import '../services/firestore_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final AppUser user;
-  const ChatScreen({super.key, required this.user});
+
+  const ChatScreen({
+    super.key,
+    required this.user,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -19,20 +23,23 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
+
     if (text.isEmpty) return;
 
-    await _service.sendMessage(AnnouncementMessage(
-      id: '',
-      text: text,
-      senderName: widget.user.name,
-      senderId: widget.user.uid,
-      isAnnouncement: widget.user.isTeacher,
-      createdAt: DateTime.now(),
-    ));
+    await _service.sendMessage(
+      AnnouncementMessage(
+        id: '',
+        chatId: '',
+        text: text,
+        senderName: widget.user.name,
+        senderId: widget.user.uid,
+        isAnnouncement: widget.user.isTeacher,
+        createdAt: DateTime.now(),
+      ),
+    );
 
     _controller.clear();
 
-    // نزول لأخر رسالة بعد إرسالها
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -45,27 +52,53 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Expanded(
           child: StreamBuilder<List<AnnouncementMessage>>(
-            // تعديل السطر 53: تمرير widget.user.uid كمعامل إجباري للدالة
-            stream: _service.getMessagesStream(widget.user.uid),
+            stream: _service.getMessagesStream(''),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
               }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'حدث خطأ: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
               final messages = snapshot.data ?? [];
+
               if (messages.isEmpty) {
                 return const Center(
-                  child: Text('مفيش رسائل لسه', style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'مفيش رسائل لسه',
+                    style: TextStyle(
+                      color: Colors.grey,
+                    ),
+                  ),
                 );
               }
 
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (_scrollController.hasClients) {
-                  _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+                  _scrollController.jumpTo(
+                    _scrollController.position.maxScrollExtent,
+                  );
                 }
               });
 
@@ -76,12 +109,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemBuilder: (context, index) {
                   final msg = messages[index];
                   final isMe = msg.senderId == widget.user.uid;
+
                   return _buildBubble(msg, isMe);
                 },
               );
             },
           ),
         ),
+
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -105,11 +140,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
+
                 const SizedBox(width: 8),
+
                 CircleAvatar(
                   backgroundColor: const Color(0xFF2E5AAC),
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                    icon: const Icon(
+                      Icons.send,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     onPressed: _sendMessage,
                   ),
                 ),
@@ -121,23 +162,31 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildBubble(AnnouncementMessage msg, bool isMe) {
+  Widget _buildBubble(
+    AnnouncementMessage msg,
+    bool isMe,
+  ) {
     if (msg.isAnnouncement) {
-      // رسالة تنبيه عام من المدرس - تظهر بشكل مميز للكل
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: const Color(0xFFFFF3CD),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFFFE69C)),
+          border: Border.all(
+            color: const Color(0xFFFFE69C),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.campaign, size: 16, color: Color(0xFF856404)),
+                const Icon(
+                  Icons.campaign,
+                  size: 16,
+                  color: Color(0xFF856404),
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'تنبيه من ${msg.senderName}',
@@ -149,12 +198,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
+
             const SizedBox(height: 6),
+
             Text(msg.text),
+
             const SizedBox(height: 4),
+
             Text(
               intl.DateFormat('d/M - h:mm a').format(msg.createdAt),
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -162,15 +218,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFF2E5AAC) : Colors.grey.shade200,
+          color: isMe
+              ? const Color(0xFF2E5AAC)
+              : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -182,18 +245,33 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: isMe ? Colors.white70 : Colors.grey.shade700,
+                  color: Colors.grey.shade700,
                 ),
               ),
+
             Text(
               msg.text,
               style: TextStyle(
-                color: isMe ? Colors.white : Colors.black87,
+                color: isMe
+                    ? Colors.white
+                    : Colors.black87,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            Text(
+              intl.DateFormat('d/M - h:mm a').format(msg.createdAt),
+              style: TextStyle(
+                fontSize: 9,
+                color: isMe
+                    ? Colors.white70
+                    : Colors.grey.shade600,
               ),
             ),
           ],
         ),
-      );
+      ),
+    );
   }
-      }
-      
+}
