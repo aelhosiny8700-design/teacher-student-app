@@ -8,6 +8,7 @@ class ContentItem {
   final String url;
   final String uploadedBy; // اسم المدرس
   final String teacherId;
+  final String stage; // المرحلة الدراسية: "ابتدائي", "اعدادي", "ثانوي"
   final DateTime createdAt;
 
   ContentItem({
@@ -18,6 +19,7 @@ class ContentItem {
     required this.url,
     required this.uploadedBy,
     required this.teacherId,
+    required this.stage,
     required this.createdAt,
   });
 
@@ -29,6 +31,7 @@ class ContentItem {
       'url': url,
       'uploadedBy': uploadedBy,
       'teacherId': teacherId,
+      'stage': stage,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -42,7 +45,28 @@ class ContentItem {
       url: map['url'] ?? '',
       uploadedBy: map['uploadedBy'] ?? '',
       teacherId: map['teacherId'] ?? '',
+      stage: map['stage'] ?? 'ابتدائي',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 }
+
+/// المراحل الدراسية المتاحة، من الأول الابتدائي للثالث الثانوي
+class EduStage {
+  static const List<String> all = [
+    'الأول الابتدائي',
+    'الثاني الابتدائي',
+    'الثالث الابتدائي',
+    'الرابع الابتدائي',
+    'الخامس الابتدائي',
+    'السادس الابتدائي',
+    'الأول الإعدادي',
+    'الثاني الإعدادي',
+    'الثالث الإعدادي',
+    'الأول الثانوي',
+    'الثاني الثانوي',
+    'الثالث الثانوي',
+  ];
+}
+
+
