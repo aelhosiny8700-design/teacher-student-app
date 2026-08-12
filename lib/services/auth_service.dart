@@ -25,10 +25,6 @@ class AuthService {
     String? myTeacherCode;
     String status = 'approved';
 
-    // نتحقق من كود المعلم *قبل* أي استدعاء لـ createUserWithEmailAndPassword.
-    // لو الكود غلط بنوقف هنا فورًا من غير ما ننشئ أي حساب في Firebase Auth،
-    // وده اللي بيمنع مشكلة "اللف والخروج" لأن حالة تسجيل الدخول
-    // مش بتتغير أصلاً في حالة الفشل.
     if (role == 'student') {
       if (teacherCode == null || teacherCode.trim().isEmpty) {
         return 'من فضلك أدخل كود المعلم';
@@ -74,14 +70,8 @@ class AuthService {
       await _db.collection('users').doc(uid).set(newUser.toMap());
 
       if (role == 'student' && status == 'pending') {
-        // نأخر الـ signOut شوية عشان نضمن إن الرسالة تتعرض
-        // على الشاشة الأول قبل ما AuthGate يعمل rebuild كامل بسبب
-        // تغيّر authStateChanges. من غير التأخير ده، الشاشة بترجع
-        // لصفحة تسجيل الدخول قبل ما setState يكمل، فالمستخدم
-        // يحس إن التطبيق "دخل وخرج" من غير أي رسالة.
-        Future.delayed(const Duration(milliseconds: 800), () {
-          _auth.signOut();
-        });
+        // الخروج التلقائي الفوري لتفادي تحويل الشاشات اللحظي
+        await _auth.signOut();
         return 'تم إنشاء حسابك بنجاح، وهيتم تفعيله بعد موافقة المعلم';
       }
 
@@ -173,3 +163,4 @@ class AuthService {
     }
   }
 }
+
