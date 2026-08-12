@@ -1,15 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  final FirebaseFirestore _db =
+      FirebaseFirestore.instance;
 
-  User? get currentUser => _auth.currentUser;
+  Stream<User?> get authStateChanges =>
+      _auth.authStateChanges();
+
+  User? get currentUser =>
+      _auth.currentUser;
 
   Future<String?> signUp({
     required String name,
@@ -20,31 +25,37 @@ class AuthService {
   }) async {
     try {
       final credential =
-          await _auth.createUserWithEmailAndPassword(
+          await _auth
+              .createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
 
-      final uid = credential.user!.uid;
+      final uid =
+          credential.user!.uid;
 
       final newUser = AppUser(
         uid: uid,
         name: name.trim(),
         email: email.trim(),
         role: role,
-        stage: role == 'student' ? stage : null,
+        stage: role == 'student'
+            ? stage
+            : null,
       );
 
       await _db
           .collection('users')
           .doc(uid)
-          .set(newUser.toMap());
+          .set(
+        newUser.toMap(),
+      );
 
       return null;
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
-      return 'حدث خطأ: $e';
+      return 'خطأ: $e';
     }
   }
 
@@ -53,7 +64,8 @@ class AuthService {
     required String password,
   }) async {
     try {
-      await _auth.signInWithEmailAndPassword(
+      await _auth
+          .signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
@@ -62,7 +74,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
-      return 'حدث خطأ: $e';
+      return 'خطأ: $e';
     }
   }
 
@@ -70,17 +82,23 @@ class AuthService {
     await _auth.signOut();
   }
 
-  Future<AppUser?> getUserData(String uid) async {
-    final doc = await _db
-        .collection('users')
-        .doc(uid)
-        .get();
+  Future<AppUser?> getUserData(
+    String uid,
+  ) async {
+    final doc =
+        await _db
+            .collection('users')
+            .doc(uid)
+            .get();
 
-    if (!doc.exists || doc.data() == null) {
-      return null;
+    if (doc.exists &&
+        doc.data() != null) {
+      return AppUser.fromMap(
+        doc.data()!,
+      );
     }
 
-    return AppUser.fromMap(doc.data()!);
+    return null;
   }
 
   String _mapError(String code) {
@@ -89,10 +107,10 @@ class AuthService {
         return 'الإيميل ده مستخدم قبل كده';
 
       case 'invalid-email':
-        return 'الإيميل غير صحيح';
+        return 'الإيميل مش صحيح';
 
       case 'weak-password':
-        return 'كلمة السر لازم تكون 6 أحرف على الأقل';
+        return 'كلمة السر لازم تكون 6 حروف على الأقل';
 
       case 'user-not-found':
         return 'الحساب ده مش موجود';
@@ -102,9 +120,6 @@ class AuthService {
 
       case 'invalid-credential':
         return 'الإيميل أو كلمة السر غلط';
-
-      case 'too-many-requests':
-        return 'محاولات كثيرة، حاول بعد شوية';
 
       default:
         return 'خطأ: $code';
