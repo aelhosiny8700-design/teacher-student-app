@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+
 import 'student_home.dart';
 import 'teacher_home.dart';
 
@@ -11,9 +15,12 @@ class LoginScreen extends StatefulWidget {
       _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState
+    extends State<LoginScreen> {
   final _authService = AuthService();
-  final _formKey = GlobalKey<FormState>();
+
+  final _formKey =
+      GlobalKey<FormState>();
 
   final _nameController =
       TextEditingController();
@@ -25,25 +32,21 @@ class _LoginScreenState extends State<LoginScreen> {
       TextEditingController();
 
   bool _isSignUp = false;
-  String _role = 'student';
-  String? _selectedClass;
   bool _loading = false;
+
+  String _role = 'student';
+
+  String? _selectedStage;
   String? _error;
 
-  static const List<String> classes = [
-    'الصف الأول الابتدائي',
-    'الصف الثاني الابتدائي',
-    'الصف الثالث الابتدائي',
-    'الصف الرابع الابتدائي',
-    'الصف الخامس الابتدائي',
-    'الصف السادس الابتدائي',
-    'الصف الأول الإعدادي',
-    'الصف الثاني الإعدادي',
-    'الصف الثالث الإعدادي',
-    'الصف الأول الثانوي',
-    'الصف الثاني الثانوي',
-    'الصف الثالث الثانوي',
-  ];
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
@@ -52,10 +55,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (_isSignUp &&
         _role == 'student' &&
-        _selectedClass == null) {
+        _selectedStage == null) {
       setState(() {
-        _error = 'اختار الصف الدراسي الأول';
+        _error = 'اختار المرحلة الدراسية';
       });
+
       return;
     }
 
@@ -70,14 +74,18 @@ class _LoginScreenState extends State<LoginScreen> {
       error = await _authService.signUp(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password:
+            _passwordController.text.trim(),
         role: _role,
-        classId: _selectedClass,
+        stage: _role == 'student'
+            ? _selectedStage
+            : null,
       );
     } else {
       error = await _authService.signIn(
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password:
+            _passwordController.text.trim(),
       );
     }
 
@@ -88,6 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _loading = false;
         _error = error;
       });
+
       return;
     }
 
@@ -98,41 +107,44 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _loading = false;
         _error =
-            'حصل خطأ غير متوقع، حاول تاني';
+            'حصل خطأ غير متوقع';
       });
+
       return;
     }
 
-    final userData =
+    final AppUser? user =
         await _authService.getUserData(uid);
 
     if (!mounted) return;
 
-    if (userData == null) {
+    if (user == null) {
       setState(() {
         _loading = false;
         _error =
             'تعذر تحميل بيانات المستخدم';
       });
+
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => userData.isTeacher
-            ? TeacherHome(user: userData)
-            : StudentHome(user: userData),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+    if (user.isTeacher) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              TeacherHome(user: user),
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              StudentHome(user: user),
+        ),
+      );
+    }
   }
 
   @override
@@ -154,7 +166,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Icon(
                     Icons.school,
                     size: 72,
-                    color: Color(0xFF2E5AAC),
+                    color:
+                        Color(0xFF2E5AAC),
                   ),
 
                   const SizedBox(height: 12),
@@ -163,8 +176,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     _isSignUp
                         ? 'إنشاء حساب جديد'
                         : 'تسجيل الدخول',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    textAlign:
+                        TextAlign.center,
+                    style:
+                        const TextStyle(
                       fontSize: 24,
                       fontWeight:
                           FontWeight.bold,
@@ -183,9 +198,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         border:
                             OutlineInputBorder(),
                       ),
-                      validator: (v) {
-                        if (v == null ||
-                            v.trim().isEmpty) {
+                      validator: (value) {
+                        if (value == null ||
+                            value
+                                .trim()
+                                .isEmpty) {
                           return 'اكتب اسمك';
                         }
 
@@ -200,7 +217,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller:
                         _emailController,
                     keyboardType:
-                        TextInputType.emailAddress,
+                        TextInputType
+                            .emailAddress,
                     decoration:
                         const InputDecoration(
                       labelText:
@@ -208,10 +226,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       border:
                           OutlineInputBorder(),
                     ),
-                    validator: (v) {
-                      if (v == null ||
-                          !v.contains('@')) {
-                        return 'إيميل غير صحيح';
+                    validator: (value) {
+                      if (value == null ||
+                          !value.contains('@')) {
+                        return 'الإيميل غير صحيح';
                       }
 
                       return null;
@@ -231,10 +249,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       border:
                           OutlineInputBorder(),
                     ),
-                    validator: (v) {
-                      if (v == null ||
-                          v.length < 6) {
-                        return 'كلمة السر 6 حروف على الأقل';
+                    validator: (value) {
+                      if (value == null ||
+                          value.length < 6) {
+                        return 'كلمة السر 6 أحرف على الأقل';
                       }
 
                       return null;
@@ -242,15 +260,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   if (_isSignUp) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
                     const Text(
-                      'أنا:',
-                      style: TextStyle(
+                      'نوع الحساب',
+                      style:
+                          TextStyle(
                         fontWeight:
                             FontWeight.bold,
                       ),
                     ),
+
+                    const SizedBox(height: 8),
 
                     Row(
                       children: [
@@ -260,39 +281,46 @@ class _LoginScreenState extends State<LoginScreen> {
                                   String>(
                             title:
                                 const Text(
-                              'طالب',
-                            ),
+                                    'طالب'),
                             value:
                                 'student',
                             groupValue:
                                 _role,
-                            onChanged: (v) {
+                            onChanged:
+                                (value) {
+                              if (value ==
+                                  null) {
+                                return;
+                              }
+
                               setState(() {
                                 _role =
-                                    v!;
+                                    value;
                               });
                             },
                           ),
                         ),
-
                         Expanded(
                           child:
                               RadioListTile<
                                   String>(
                             title:
                                 const Text(
-                              'مدرس',
-                            ),
+                                    'مدرس'),
                             value:
                                 'teacher',
                             groupValue:
                                 _role,
-                            onChanged: (v) {
+                            onChanged:
+                                (value) {
+                              if (value ==
+                                  null) {
+                                return;
+                              }
+
                               setState(() {
                                 _role =
-                                    v!;
-                                _selectedClass =
-                                    null;
+                                    value;
                               });
                             },
                           ),
@@ -300,36 +328,52 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
 
-                    if (_role == 'student') ...[
+                    if (_role ==
+                        'student') ...[
                       const SizedBox(height: 8),
 
                       DropdownButtonFormField<
                           String>(
                         value:
-                            _selectedClass,
+                            _selectedStage,
                         decoration:
                             const InputDecoration(
                           labelText:
-                              'الصف الدراسي',
+                              'المرحلة الدراسية',
                           border:
                               OutlineInputBorder(),
                         ),
-                        items: classes
+                        items: FirestoreService
+                            .stages
                             .map(
-                              (item) =>
+                              (stage) =>
                                   DropdownMenuItem<
                                       String>(
-                                value: item,
+                                value: stage,
                                 child:
-                                    Text(item),
+                                    Text(
+                                  stage,
+                                ),
                               ),
                             )
                             .toList(),
-                        onChanged: (value) {
+                        onChanged:
+                            (value) {
                           setState(() {
-                            _selectedClass =
+                            _selectedStage =
                                 value;
                           });
+                        },
+                        validator:
+                            (value) {
+                          if (_role ==
+                                  'student' &&
+                              value ==
+                                  null) {
+                            return 'اختار المرحلة';
+                          }
+
+                          return null;
                         },
                       ),
                     ],
@@ -337,6 +381,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   if (_error != null) ...[
                     const SizedBox(height: 12),
+
                     Text(
                       _error!,
                       style:
@@ -372,7 +417,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 CircularProgressIndicator(
                               color:
                                   Colors.white,
-                              strokeWidth: 2,
+                              strokeWidth:
+                                  2,
                             ),
                           )
                         : Text(
@@ -396,14 +442,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         _isSignUp =
                             !_isSignUp;
                         _error = null;
-                        _selectedClass =
-                            null;
                       });
                     },
                     child: Text(
                       _isSignUp
                           ? 'عندك حساب؟ سجل دخول'
-                          : 'مفيش حساب؟ اعمل واحد جديد',
+                          : 'مفيش حساب؟ اعمل حساب جديد',
                     ),
                   ),
                 ],
