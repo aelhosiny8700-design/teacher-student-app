@@ -127,6 +127,114 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final resetEmailController =
+        TextEditingController(text: _emailController.text.trim());
+    final dialogFormKey = GlobalKey<FormState>();
+    bool sending = false;
+    String? dialogError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('نسيت كلمة السر'),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'اكتب إيميلك، وهيتبعتلك رابط لإعادة تعيين كلمة السر.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: resetEmailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: 'البريد الإلكتروني',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => v == null || !v.contains('@')
+                          ? 'إيميل غير صحيح'
+                          : null,
+                    ),
+                    if (dialogError != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        dialogError!,
+                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: sending ? null : () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                FilledButton(
+                  onPressed: sending
+                      ? null
+                      : () async {
+                          if (!dialogFormKey.currentState!.validate()) {
+                            return;
+                          }
+
+                          setDialogState(() {
+                            sending = true;
+                            dialogError = null;
+                          });
+
+                          final error = await _authService
+                              .sendPasswordResetEmail(
+                                  resetEmailController.text.trim());
+
+                          if (error != null) {
+                            setDialogState(() {
+                              sending = false;
+                              dialogError = error;
+                            });
+                            return;
+                          }
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'تم إرسال رابط إعادة التعيين، افحص بريدك الإلكتروني',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  child: sending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('إرسال'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -205,6 +313,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'كلمة السر 6 حروف على الأقل'
                         : null,
                   ),
+
+                  if (!_isSignUp) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _loading ? null : _showForgotPasswordDialog,
+                        child: const Text('نسيت كلمة السر؟'),
+                      ),
+                    ),
+                  ],
 
                   if (_isSignUp) ...[
                     const SizedBox(height: 16),
@@ -377,3 +495,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+
