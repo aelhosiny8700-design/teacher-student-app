@@ -1,5 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/user_model.dart';
 
 class AuthService {
@@ -15,7 +16,7 @@ class AuthService {
     required String email,
     required String password,
     required String role,
-    String? classId,
+    String? stage,
   }) async {
     try {
       final credential =
@@ -31,7 +32,7 @@ class AuthService {
         name: name.trim(),
         email: email.trim(),
         role: role,
-        classId: role == 'student' ? classId : null,
+        stage: role == 'student' ? stage : null,
       );
 
       await _db
@@ -43,7 +44,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
-      return 'خطأ: $e';
+      return 'حدث خطأ: $e';
     }
   }
 
@@ -61,7 +62,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _mapError(e.code);
     } catch (e) {
-      return 'خطأ: $e';
+      return 'حدث خطأ: $e';
     }
   }
 
@@ -70,8 +71,10 @@ class AuthService {
   }
 
   Future<AppUser?> getUserData(String uid) async {
-    final doc =
-        await _db.collection('users').doc(uid).get();
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .get();
 
     if (!doc.exists || doc.data() == null) {
       return null;
@@ -86,10 +89,10 @@ class AuthService {
         return 'الإيميل ده مستخدم قبل كده';
 
       case 'invalid-email':
-        return 'الإيميل مش صحيح';
+        return 'الإيميل غير صحيح';
 
       case 'weak-password':
-        return 'كلمة السر لازم تكون 6 حروف على الأقل';
+        return 'كلمة السر لازم تكون 6 أحرف على الأقل';
 
       case 'user-not-found':
         return 'الحساب ده مش موجود';
@@ -99,6 +102,9 @@ class AuthService {
 
       case 'invalid-credential':
         return 'الإيميل أو كلمة السر غلط';
+
+      case 'too-many-requests':
+        return 'محاولات كثيرة، حاول بعد شوية';
 
       default:
         return 'خطأ: $code';
