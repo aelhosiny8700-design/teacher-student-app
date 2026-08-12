@@ -2,54 +2,77 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
+import 'firestore_service.dart';
 
 class AuthService {
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirestoreService _firestoreService = FirestoreService();
 
-  final FirebaseFirestore _db =
-      FirebaseFirestore.instance;
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  Stream<User?> get authStateChanges =>
-      _auth.authStateChanges();
+  User? get currentUser => _auth.currentUser;
 
-  User? get currentUser =>
-      _auth.currentUser;
-
+  /// نتيجة التسجيل: بترجع رسالة خطأ لو فيه مشكلة، أو null لو نجح
   Future<String?> signUp({
     required String name,
     required String email,
     required String password,
     required String role,
     String? stage,
+    String? teacherCode, // مطلوب لو role == student
   }) async {
     try {
-      final credential =
-          await _auth
-              .createUserWithEmailAndPassword(
+      String? linkedTeacherUid;
+      String? myTeacherCode;
+      String status = 'approved';
+
+      if (role == 'student') {
+        // لازم نتأكد من كود المعلم قبل ما نعمل الحساب في Auth
+        if (teacherCode == null || teacherCode.trim().isEmpty) {
+          return 'من فضلك أدخل كود المعلم';
+        }
+
+        final teacher = await _firestoreService.findTeacherByCode(teacherCode);
+
+        if (teacher == null) {
+          return 'كود المعلم غير صحيح';
+        }
+
+        linkedTeacherUid = teacher.uid;
+        status = 'pending'; // الطالب يفضل معلق لحد ما المعلم يوافق
+      }
+
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
 
-      final uid =
-          credential.user!.uid;
+      final uid = credential.user!.uid;
+
+      if (role == 'teacher') {
+        // كل معلم جديد ياخد كود دعوة فريد خاص بيه
+        myTeacherCode = await _firestoreService.generateUniqueTeacherCode();
+      }
 
       final newUser = AppUser(
         uid: uid,
         name: name.trim(),
         email: email.trim(),
         role: role,
-        stage: role == 'student'
-            ? stage
-            : null,
+        stage: role == 'student' ? stage : null,
+        teacherCode: role == 'teacher' ? myTeacherCode : null,
+        linkedTeacherUid: linkedTeacherUid,
+        status: status,
       );
 
-      await _db
-          .collection('users')
-          .doc(uid)
-          .set(
-        newUser.toMap(),
-      );
+      await _db.collection('users').doc(uid).set(newUser.toMap());
+
+      // لو طالب وحسابه معلق، نسجله خروج فوراً عشان ميدخلش قبل الموافقة
+      if (role == 'student' && status == 'pending') {
+        await _auth.signOut();
+        return 'تم إنشاء حسابك بنجاح، وهيتم تفعيله بعد موافقة المعلم';
+      }
 
       return null;
     } on FirebaseAuthException catch (e) {
@@ -64,11 +87,30 @@ class AuthService {
     required String password,
   }) async {
     try {
-      await _auth
-          .signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
+
+      final uid = credential.user!.uid;
+      final userData = await getUserData(uid);
+
+      if (userData == null) {
+        await _auth.signOut();
+        return 'تعذر تحميل بيانات المستخدم';
+      }
+
+      if (userData.role == 'student') {
+        if (userData.status == 'pending') {
+          await _auth.signOut();
+          return 'حسابك لسه قيد المراجعة من المعلم، حاول تاني بعدين';
+        }
+
+        if (userData.status == 'rejected') {
+          await _auth.signOut();
+          return 'تم رفض طلب انضمامك، تواصل مع المعلم';
+        }
+      }
 
       return null;
     } on FirebaseAuthException catch (e) {
@@ -82,20 +124,11 @@ class AuthService {
     await _auth.signOut();
   }
 
-  Future<AppUser?> getUserData(
-    String uid,
-  ) async {
-    final doc =
-        await _db
-            .collection('users')
-            .doc(uid)
-            .get();
+  Future<AppUser?> getUserData(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
 
-    if (doc.exists &&
-        doc.data() != null) {
-      return AppUser.fromMap(
-        doc.data()!,
-      );
+    if (doc.exists && doc.data() != null) {
+      return AppUser.fromMap(doc.data()!);
     }
 
     return null;
@@ -105,22 +138,16 @@ class AuthService {
     switch (code) {
       case 'email-already-in-use':
         return 'الإيميل ده مستخدم قبل كده';
-
       case 'invalid-email':
         return 'الإيميل مش صحيح';
-
       case 'weak-password':
         return 'كلمة السر لازم تكون 6 حروف على الأقل';
-
       case 'user-not-found':
         return 'الحساب ده مش موجود';
-
       case 'wrong-password':
         return 'كلمة السر غلط';
-
       case 'invalid-credential':
         return 'الإيميل أو كلمة السر غلط';
-
       default:
         return 'خطأ: $code';
     }
