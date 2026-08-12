@@ -2,19 +2,18 @@ class AppUser {
   final String uid;
   final String name;
   final String email;
-  final String role; // teacher أو student
-  final String? stage; // المرحلة الدراسية
+  final String role; // teacher / student
+  final String? classId;
+  final String? stage;
 
   AppUser({
     required this.uid,
     required this.name,
     required this.email,
     required this.role,
+    this.classId,
     this.stage,
   });
-
-  bool get isTeacher => role == 'teacher';
-  bool get isStudent => role == 'student';
 
   Map<String, dynamic> toMap() {
     return {
@@ -22,6 +21,7 @@ class AppUser {
       'name': name,
       'email': email,
       'role': role,
+      'classId': classId,
       'stage': stage,
     };
   }
@@ -32,7 +32,10 @@ class AppUser {
       name: map['name']?.toString() ?? '',
       email: map['email']?.toString() ?? '',
       role: map['role']?.toString() ?? 'student',
+      classId: map['classId']?.toString(),
       stage: map['stage']?.toString(),
     );
   }
+
+  bool get isTeacher => role == 'teacher';
 }
