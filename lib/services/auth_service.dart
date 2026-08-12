@@ -13,36 +13,42 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
-  /// نتيجة التسجيل: بترجع رسالة خطأ لو فيه مشكلة، أو null لو نجح
   Future<String?> signUp({
     required String name,
     required String email,
     required String password,
     required String role,
     String? stage,
-    String? teacherCode, // مطلوب لو role == student
+    String? teacherCode,
   }) async {
-    try {
-      String? linkedTeacherUid;
-      String? myTeacherCode;
-      String status = 'approved';
+    String? linkedTeacherUid;
+    String? myTeacherCode;
+    String status = 'approved';
 
-      if (role == 'student') {
-        // لازم نتأكد من كود المعلم قبل ما نعمل الحساب في Auth
-        if (teacherCode == null || teacherCode.trim().isEmpty) {
-          return 'من فضلك أدخل كود المعلم';
-        }
+    // نتحقق من كود المعلم *قبل* أي استدعاء لـ createUserWithEmailAndPassword.
+    // لو الكود غلط بنوقف هنا فورًا من غير ما ننشئ أي حساب في Firebase Auth،
+    // وده اللي بيمنع مشكلة "اللف والخروج" لأن حالة تسجيل الدخول
+    // مش بتتغير أصلاً في حالة الفشل.
+    if (role == 'student') {
+      if (teacherCode == null || teacherCode.trim().isEmpty) {
+        return 'من فضلك أدخل كود المعلم';
+      }
 
-        final teacher = await _firestoreService.findTeacherByCode(teacherCode);
+      try {
+        final teacher = await _firestoreService.findTeacherByCode(teacherCode.trim());
 
         if (teacher == null) {
           return 'كود المعلم غير صحيح';
         }
 
         linkedTeacherUid = teacher.uid;
-        status = 'pending'; // الطالب يفضل معلق لحد ما المعلم يوافق
+        status = 'pending';
+      } catch (e) {
+        return 'تعذر التحقق من كود المعلم، حاول تاني (${e.toString()})';
       }
+    }
 
+    try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
@@ -51,7 +57,6 @@ class AuthService {
       final uid = credential.user!.uid;
 
       if (role == 'teacher') {
-        // كل معلم جديد ياخد كود دعوة فريد خاص بيه
         myTeacherCode = await _firestoreService.generateUniqueTeacherCode();
       }
 
@@ -68,7 +73,6 @@ class AuthService {
 
       await _db.collection('users').doc(uid).set(newUser.toMap());
 
-      // لو طالب وحسابه معلق، نسجله خروج فوراً عشان ميدخلش قبل الموافقة
       if (role == 'student' && status == 'pending') {
         await _auth.signOut();
         return 'تم إنشاء حسابك بنجاح، وهيتم تفعيله بعد موافقة المعلم';
@@ -82,10 +86,7 @@ class AuthService {
     }
   }
 
-  Future<String?> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<String?> signIn({required String email, required String password}) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
@@ -105,7 +106,6 @@ class AuthService {
           await _auth.signOut();
           return 'حسابك لسه قيد المراجعة من المعلم، حاول تاني بعدين';
         }
-
         if (userData.status == 'rejected') {
           await _auth.signOut();
           return 'تم رفض طلب انضمامك، تواصل مع المعلم';
@@ -120,16 +120,12 @@ class AuthService {
     }
   }
 
-  /// يبعت إيميل فيه رابط لإعادة تعيين كلمة السر.
-  /// بترجع null لو نجح الإرسال، أو رسالة خطأ واضحة لو فشل.
   Future<String?> sendPasswordResetEmail(String email) async {
     try {
       final trimmedEmail = email.trim();
-
       if (trimmedEmail.isEmpty || !trimmedEmail.contains('@')) {
         return 'أدخل إيميل صحيح';
       }
-
       await _auth.sendPasswordResetEmail(email: trimmedEmail);
       return null;
     } on FirebaseAuthException catch (e) {
@@ -145,11 +141,9 @@ class AuthService {
 
   Future<AppUser?> getUserData(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
-
     if (doc.exists && doc.data() != null) {
       return AppUser.fromMap(doc.data()!);
     }
-
     return null;
   }
 
@@ -172,5 +166,3 @@ class AuthService {
     }
   }
 }
-
-
