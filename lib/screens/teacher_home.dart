@@ -6,7 +6,7 @@ import 'content_list_screen.dart';
 import 'upload_content_screen.dart';
 import 'quiz_list_screen.dart';
 import 'quiz_create_screen.dart';
-import 'chat_screen.dart';
+import 'chat_hub_screen.dart';
 
 // ألوان الهوية الأساسية للتطبيق
 class AppColors {
@@ -35,7 +35,7 @@ class _TeacherHomeState extends State<TeacherHome> {
       _TeacherDashboardTab(user: widget.user),
       ContentListScreen(user: widget.user),
       QuizListScreen(user: widget.user),
-      ChatScreen(user: widget.user),
+      ChatHubScreen(user: widget.user),
     ];
 
     return Scaffold(
@@ -353,7 +353,7 @@ class _QuickActionsGrid extends StatelessWidget {
         icon: Icons.chat_bubble,
         color: const Color(0xFF43A047),
         label: 'الرسائل',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(user: user))),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatHubScreen(user: user))),
       ),
     ];
 
