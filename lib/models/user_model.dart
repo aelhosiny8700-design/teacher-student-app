@@ -2,8 +2,8 @@ class AppUser {
   final String uid;
   final String name;
   final String email;
-  final String role; // "teacher" or "student"
-  final String? classId; // للطالب: الفصل اللي هو فيه
+  final String role;
+  final String? classId;
 
   AppUser({
     required this.uid,
@@ -12,6 +12,8 @@ class AppUser {
     required this.role,
     this.classId,
   });
+
+  bool get isTeacher => role == 'teacher';
 
   Map<String, dynamic> toMap() {
     return {
@@ -32,6 +34,4 @@ class AppUser {
       classId: map['classId'],
     );
   }
-
-  bool get isTeacher => role == 'teacher';
 }
