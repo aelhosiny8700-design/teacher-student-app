@@ -28,9 +28,6 @@ class _StudentHomeState extends State<StudentHome> {
       _StudentDashboardTab(user: widget.user),
       ContentListScreen(user: widget.user),
       QuizListScreen(user: widget.user),
-
-      // الشات الجديد:
-      // شات عام للمرحلة + شات خاص مع المدرس
       ChatHubScreen(user: widget.user),
     ];
 
@@ -116,7 +113,6 @@ class _StudentHomeState extends State<StudentHome> {
   }
 }
 
-/// تبويب الرئيسية للطالب
 class _StudentDashboardTab extends StatelessWidget {
   final AppUser user;
 
@@ -130,26 +126,17 @@ class _StudentDashboardTab extends StatelessWidget {
       color: AppColors.primary,
       onRefresh: () async {},
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          32,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           _WelcomeBanner(name: user.name),
           const SizedBox(height: 20),
           _ProgressRow(uid: user.uid),
           const SizedBox(height: 24),
-          const _SectionTitle(
-            title: 'الوصول السريع',
-          ),
+          const _SectionTitle(title: 'الوصول السريع'),
           const SizedBox(height: 12),
           _QuickActionsGrid(user: user),
           const SizedBox(height: 24),
-          const _SectionTitle(
-            title: 'آخر نتائجك',
-          ),
+          const _SectionTitle(title: 'آخر نتائجك'),
           const SizedBox(height: 12),
           _RecentResultsList(uid: user.uid),
         ],
@@ -243,10 +230,7 @@ class _ProgressRow extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('quiz_results')
-          .where(
-            'studentUid',
-            isEqualTo: uid,
-          )
+          .where('studentUid', isEqualTo: uid)
           .snapshots(),
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
@@ -263,9 +247,7 @@ class _ProgressRow extends StatelessWidget {
             final score = data['score'] ?? 0;
             final maxScore = data['maxScore'] ?? 1;
 
-            if (score is num &&
-                maxScore is num &&
-                maxScore > 0) {
+            if (score is num && maxScore is num && maxScore > 0) {
               sum += score / maxScore;
             }
           }
@@ -280,8 +262,7 @@ class _ProgressRow extends StatelessWidget {
                 icon: Icons.check_circle,
                 color: const Color(0xFF43A047),
                 label: 'اختبارات مُنجزة',
-                value: snapshot.connectionState ==
-                        ConnectionState.waiting
+                value: snapshot.connectionState == ConnectionState.waiting
                     ? '—'
                     : '$total',
               ),
@@ -292,8 +273,7 @@ class _ProgressRow extends StatelessWidget {
                 icon: Icons.trending_up,
                 color: const Color(0xFF2E5AAC),
                 label: 'متوسط الدرجات',
-                value: snapshot.connectionState ==
-                        ConnectionState.waiting
+                value: snapshot.connectionState == ConnectionState.waiting
                     ? '—'
                     : '${avg.toStringAsFixed(0)}%',
               ),
@@ -439,9 +419,6 @@ class _QuickActionsGrid extends StatelessWidget {
           );
         },
       ),
-
-      // الشات الجديد:
-      // عام للمرحلة + خاص مع المدرس
       _QuickAction(
         icon: Icons.chat_bubble,
         color: const Color(0xFF43A047),
@@ -457,7 +434,6 @@ class _QuickActionsGrid extends StatelessWidget {
           );
         },
       ),
-
       _QuickAction(
         icon: Icons.emoji_events,
         color: const Color(0xFFFB8C00),
@@ -509,9 +485,7 @@ class _QuickAction extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             boxShadow: const [
@@ -568,19 +542,17 @@ class _RecentResultsList extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('quiz_results')
-          .where(
-            'studentUid',
-            isEqualTo: uid,
-          )
-          .orderBy(
-            'createdAt',
-            descending: true,
-          )
-          .limit(4)
+          .where('studentUid', isEqualTo: uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.hasError) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: Text('حدث خطأ أثناء تحميل النتائج')),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
@@ -611,18 +583,24 @@ class _RecentResultsList extends StatelessWidget {
           );
         }
 
+        // ترتيب المستندات في الكود لتجنب خطأ الترتيب المركب مع الفلترة
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          if (aTime == null || bTime == null) return 0;
+          return bTime.compareTo(aTime);
+        });
+
         return Column(
-          children: docs.map((doc) {
-            final data =
-                doc.data() as Map<String, dynamic>;
+          children: sortedDocs.take(4).map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
 
             final score = data['score'] ?? 0;
             final maxScore = data['maxScore'] ?? 0;
 
             return Container(
-              margin: const EdgeInsets.only(
-                bottom: 10,
-              ),
+              margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -640,10 +618,8 @@ class _RecentResultsList extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color:
-                          AppColors.accent.withOpacity(0.15),
-                      borderRadius:
-                          BorderRadius.circular(10),
+                      color: AppColors.accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
                       Icons.emoji_events,
@@ -654,9 +630,7 @@ class _RecentResultsList extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      (data['quizTitle'] ??
-                              'اختبار')
-                          .toString(),
+                      (data['quizTitle'] ?? 'اختبار').toString(),
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
