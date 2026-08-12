@@ -9,7 +9,6 @@ import 'quiz_create_screen.dart';
 import 'chat_hub_screen.dart';
 import 'teacher_profile_screen.dart';
 
-// ألوان الهوية الأساسية للتطبيق
 class AppColors {
   static const primary = Color(0xFF2E5AAC);
   static const primaryDark = Color(0xFF1E3F7D);
@@ -144,7 +143,6 @@ class _TeacherHomeState extends State<TeacherHome> {
   }
 }
 
-/// تبويب الرئيسية: إحصائيات المعلم + وصول سريع
 class _TeacherDashboardTab extends StatelessWidget {
   final AppUser user;
   const _TeacherDashboardTab({required this.user});
@@ -444,10 +442,11 @@ class _RecentContentList extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('content')
           .where('teacherUid', isEqualTo: teacherUid)
-          .orderBy('createdAt', descending: true)
-          .limit(4)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('حدث خطأ أثناء تحميل البيانات'));
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
@@ -467,8 +466,18 @@ class _RecentContentList extends StatelessWidget {
             ),
           );
         }
+
+        // ترتيب المحتوى أوفلاين في التطبيق لحين تجهيز الفهرس من Firebase
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          if (aTime == null || bTime == null) return 0;
+          return bTime.compareTo(aTime);
+        });
+
         return Column(
-          children: docs.map((doc) {
+          children: sortedDocs.take(4).map((doc) {
             final data = doc.data() as Map<String, dynamic>;
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -507,5 +516,3 @@ class _RecentContentList extends StatelessWidget {
     );
   }
 }
-
-
