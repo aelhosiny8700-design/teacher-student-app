@@ -17,7 +17,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _service = FirestoreService();
   final _scrollController = ScrollController();
 
-  Future<void> _send() async {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
@@ -32,7 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _controller.clear();
 
-    // نزول لآخر رسالة بعد إرسالها
+    // نزول لأخر رسالة بعد إرسالها
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -50,7 +50,8 @@ class _ChatScreenState extends State<ChatScreen> {
       children: [
         Expanded(
           child: StreamBuilder<List<AnnouncementMessage>>(
-            stream: _service.getMessagesStream(),
+            // تعديل السطر 53: تمرير widget.user.uid كمعامل إجباري للدالة
+            stream: _service.getMessagesStream(widget.user.uid),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -91,15 +92,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _controller,
                     decoration: InputDecoration(
                       hintText: widget.user.isTeacher
-                          ? 'اكتب تنبيه عام للطلبة...'
-                          : 'اكتب رسالتك...',
+                          ? '...اكتب تنبيه عام للطلبة'
+                          : '...اكتب رسالتك',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
-                    onSubmitted: (_) => _send(),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -107,7 +110,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   backgroundColor: const Color(0xFF2E5AAC),
                   child: IconButton(
                     icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _send,
+                    onPressed: _sendMessage,
                   ),
                 ),
               ],
@@ -139,7 +142,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   'تنبيه من ${msg.senderName}',
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Color(0xFF856404), fontSize: 13),
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF856404),
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -160,7 +166,9 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.7,
+        ),
         decoration: BoxDecoration(
           color: isMe ? const Color(0xFF2E5AAC) : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(14),
@@ -169,18 +177,23 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe)
-              Text(msg.senderName,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: isMe ? Colors.white70 : Colors.grey.shade700)),
+              Text(
+                msg.senderName,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isMe ? Colors.white70 : Colors.grey.shade700,
+                ),
+              ),
             Text(
               msg.text,
-              style: TextStyle(color: isMe ? Colors.white : Colors.black87),
+              style: TextStyle(
+                color: isMe ? Colors.white : Colors.black87,
+              ),
             ),
           ],
         ),
-      ),
-    );
+      );
   }
-}
+      }
+      
