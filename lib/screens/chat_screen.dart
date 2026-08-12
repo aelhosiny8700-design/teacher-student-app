@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
-import '../models/user_model.dart';
+
 import '../models/message_model.dart';
+import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final AppUser user;
 
-  final AppUser? otherUser;
+  final String chatId;
+  final String title;
 
-  final String? classId;
+  final bool isGeneral;
+  final String? stage;
 
   const ChatScreen({
     super.key,
     required this.user,
-    this.otherUser,
-    this.classId,
+    required this.chatId,
+    required this.title,
+    required this.isGeneral,
+    this.stage,
   });
-
-  bool get isPrivateChat =>
-      otherUser != null;
 
   @override
   State<ChatScreen> createState() =>
@@ -31,284 +33,288 @@ class _ChatScreenState
   final _controller =
       TextEditingController();
 
-  final _service =
-      FirestoreService();
-
   final _scrollController =
       ScrollController();
 
-  Future<void> _sendMessage() async {
-    final text =
-        _controller.text.trim();
+  final _service =
+      FirestoreService();
 
-    if (text.isEmpty) return;
-
-    try {
-      if (widget.isPrivateChat) {
-        await _service.sendPrivateMessage(
-          currentUid:
-              widget.user.uid,
-          otherUid:
-              widget.otherUser!.uid,
-          senderName:
-              widget.user.name,
-          text: text,
-        );
-      } else {
-        final classId =
-            widget.classId ??
-            widget.user.classId;
-
-        if (classId == null ||
-            classId.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'لم يتم تحديد الصف الدراسي',
-                ),
-              ),
-            );
-          }
-
-          return;
-        }
-
-        await _service.sendClassMessage(
-          classId: classId,
-          text: text,
-          senderId:
-              widget.user.uid,
-          senderName:
-              widget.user.name,
-        );
-      }
-
-      _controller.clear();
-
-      Future.delayed(
-        const Duration(
-          milliseconds: 300,
-        ),
-        () {
-          if (_scrollController
-              .hasClients) {
-            _scrollController.animateTo(
-              _scrollController
-                  .position
-                  .maxScrollExtent,
-              duration:
-                  const Duration(
-                milliseconds: 300,
-              ),
-              curve:
-                  Curves.easeOut,
-            );
-          }
-        },
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            'حدث خطأ: $e',
-          ),
-        ),
-      );
-    }
-  }
+  bool _sending = false;
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+
     super.dispose();
   }
 
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final privateChat =
-        widget.isPrivateChat;
+  Future<void> _sendMessage() async {
+    final text =
+        _controller.text.trim();
 
-    final classId =
-        widget.classId ??
-        widget.user.classId;
-
-    if (!privateChat &&
-        (classId == null ||
-            classId.isEmpty)) {
-      return const Center(
-        child: Text(
-          'لم يتم تحديد الصف الدراسي لهذا الحساب',
-        ),
-      );
+    if (text.isEmpty ||
+        _sending) {
+      return;
     }
 
-    final Stream<
-            List<AnnouncementMessage>>
-        messageStream = privateChat
-            ? _service
-                .getPrivateMessagesStream(
-                widget.user.uid,
-                widget.otherUser!.uid,
-              )
-            : _service
-                .getClassMessagesStream(
-                classId!,
-              );
+    setState(() {
+      _sending = true;
+    });
 
-    return Column(
-      children: [
-        Expanded(
-          child: StreamBuilder<
-              List<AnnouncementMessage>>(
-            stream: messageStream,
-            builder:
-                (context, snapshot) {
-              if (snapshot
-                      .connectionState ==
-                  ConnectionState
-                      .waiting) {
-                return const Center(
-                  child:
-                      CircularProgressIndicator(),
-                );
-              }
+    try {
+      final message =
+          AnnouncementMessage(
+        id: '',
+        chatId: widget.chatId,
+        text: text,
+        senderName:
+            widget.user.name,
+        senderId:
+            widget.user.uid,
+        isAnnouncement:
+            widget.isGeneral &&
+                widget.user.isTeacher,
+        chatType:
+            widget.isGeneral
+                ? 'general'
+                : 'private',
+        stage: widget.stage,
+        createdAt:
+            DateTime.now(),
+      );
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'حدث خطأ: ${snapshot.error}',
-                  ),
-                );
-              }
+      await _service
+          .sendMessage(message);
 
-              final messages =
-                  snapshot.data ?? [];
+      _controller.clear();
 
-              if (messages.isEmpty) {
-                return Center(
-                  child: Text(
-                    privateChat
-                        ? 'ابدأ المحادثة'
-                        : 'مفيش رسائل في الشات لسه',
-                  ),
-                );
-              }
+      if (!mounted) return;
 
-              WidgetsBinding
-                  .instance
-                  .addPostFrameCallback(
-                (_) {
-                  if (_scrollController
-                      .hasClients) {
-                    _scrollController
-                        .jumpTo(
-                      _scrollController
-                          .position
-                          .maxScrollExtent,
-                    );
-                  }
-                },
-              );
+      await Future.delayed(
+        const Duration(
+          milliseconds: 200,
+        ),
+      );
 
-              return ListView.builder(
-                controller:
-                    _scrollController,
-                padding:
-                    const EdgeInsets.all(
-                  12,
-                ),
-                itemCount:
-                    messages.length,
-                itemBuilder:
-                    (context, index) {
-                  final message =
-                      messages[index];
+      if (_scrollController
+          .hasClients) {
+        await _scrollController
+            .animateTo(
+          _scrollController
+              .position
+              .maxScrollExtent,
+          duration:
+              const Duration(
+            milliseconds: 250,
+          ),
+          curve:
+              Curves.easeOut,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
 
-                  final isMe =
-                      message.senderId ==
-                          widget.user.uid;
-
-                  return _buildBubble(
-                    message,
-                    isMe,
-                  );
-                },
-              );
-            },
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'فشل إرسال الرسالة: $e',
           ),
         ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
+  }
 
-        SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller:
-                        _controller,
-                    decoration:
-                        InputDecoration(
-                      hintText: privateChat
-                          ? 'اكتب رسالتك...'
-                          : 'اكتب رسالة للصف...',
-                      border:
-                          OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          24,
-                        ),
-                      ),
-                      contentPadding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor:
+            const Color(0xFF2E5AAC),
+        foregroundColor:
+            Colors.white,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<
+                List<AnnouncementMessage>>(
+              stream: _service
+                  .getMessagesStream(
+                widget.chatId,
+              ),
+              builder:
+                  (context, snapshot) {
+                if (snapshot
+                        .connectionState ==
+                    ConnectionState
+                        .waiting) {
+                  return const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'حدث خطأ في تحميل الرسائل\n${snapshot.error}',
+                      textAlign:
+                          TextAlign.center,
+                    ),
+                  );
+                }
+
+                final messages =
+                    snapshot.data ?? [];
+
+                if (messages.isEmpty) {
+                  return Center(
+                    child: Text(
+                      widget.isGeneral
+                          ? 'مفيش رسائل في شات المرحلة لسه'
+                          : 'ابدأ المحادثة مع الطالب/المدرس',
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.grey,
                       ),
                     ),
-                    onSubmitted:
-                        (_) =>
-                            _sendMessage(),
-                  ),
-                ),
+                  );
+                }
 
-                const SizedBox(
-                  width: 8,
-                ),
+                WidgetsBinding
+                    .instance
+                    .addPostFrameCallback(
+                  (_) {
+                    if (_scrollController
+                        .hasClients) {
+                      _scrollController
+                          .jumpTo(
+                        _scrollController
+                            .position
+                            .maxScrollExtent,
+                      );
+                    }
+                  },
+                );
 
-                CircleAvatar(
-                  backgroundColor:
-                      const Color(
-                    0xFF2E5AAC,
-                  ),
-                  child: IconButton(
-                    icon:
-                        const Icon(
-                      Icons.send,
-                      color:
-                          Colors.white,
-                    ),
-                    onPressed:
-                        _sendMessage,
-                  ),
-                ),
-              ],
+                return ListView.builder(
+                  controller:
+                      _scrollController,
+                  padding:
+                      const EdgeInsets.all(
+                          12),
+                  itemCount:
+                      messages.length,
+                  itemBuilder:
+                      (context, index) {
+                    final msg =
+                        messages[index];
+
+                    final isMe =
+                        msg.senderId ==
+                            widget.user.uid;
+
+                    return _buildBubble(
+                      msg,
+                      isMe,
+                    );
+                  },
+                );
+              },
             ),
           ),
-        ),
-      ],
+
+          SafeArea(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child:
+                        TextField(
+                      controller:
+                          _controller,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction:
+                          TextInputAction
+                              .send,
+                      decoration:
+                          InputDecoration(
+                        hintText:
+                            widget.isGeneral
+                                ? 'اكتب رسالة للمرحلة...'
+                                : 'اكتب رسالتك...',
+                        border:
+                            OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                                      24),
+                        ),
+                        contentPadding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                      ),
+                      onSubmitted:
+                          (_) =>
+                              _sendMessage(),
+                    ),
+                  ),
+
+                  const SizedBox(
+                    width: 8,
+                  ),
+
+                  CircleAvatar(
+                    backgroundColor:
+                        const Color(
+                            0xFF2E5AAC),
+                    child:
+                        IconButton(
+                      icon: _sending
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child:
+                                  CircularProgressIndicator(
+                                color: Colors
+                                    .white,
+                                strokeWidth:
+                                    2,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send,
+                              color: Colors
+                                  .white,
+                            ),
+                      onPressed:
+                          _sending
+                              ? null
+                              : _sendMessage,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -316,6 +322,83 @@ class _ChatScreenState
     AnnouncementMessage msg,
     bool isMe,
   ) {
+    if (msg.isAnnouncement) {
+      return Container(
+        width: double.infinity,
+        margin:
+            const EdgeInsets.symmetric(
+          vertical: 6,
+        ),
+        padding:
+            const EdgeInsets.all(12),
+        decoration:
+            BoxDecoration(
+          color:
+              const Color(0xFFFFF3CD),
+          borderRadius:
+              BorderRadius.circular(
+                  10),
+          border: Border.all(
+            color:
+                const Color(0xFFFFE69C),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment
+                  .start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.campaign,
+                  size: 18,
+                  color:
+                      Color(0xFF856404),
+                ),
+                const SizedBox(
+                    width: 6),
+                Expanded(
+                  child: Text(
+                    'تنبيه من ${msg.senderName}',
+                    style:
+                        const TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
+                      color:
+                          Color(0xFF856404),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(
+                height: 6),
+
+            Text(msg.text),
+
+            const SizedBox(
+                height: 4),
+
+            Text(
+              intl.DateFormat(
+                'd/M - h:mm a',
+              ).format(
+                msg.createdAt,
+              ),
+              style:
+                  const TextStyle(
+                fontSize: 10,
+                color:
+                    Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Align(
       alignment: isMe
           ? Alignment.centerRight
@@ -336,23 +419,22 @@ class _ChatScreenState
               MediaQuery.of(context)
                       .size
                       .width *
-                  0.75,
+                  0.78,
         ),
         decoration:
             BoxDecoration(
           color: isMe
               ? const Color(
-                  0xFF2E5AAC,
-                )
+                  0xFF2E5AAC)
               : Colors.grey.shade200,
           borderRadius:
               BorderRadius.circular(
-            14,
-          ),
+                  14),
         ),
         child: Column(
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
           children: [
             if (!isMe)
               Text(
@@ -361,10 +443,15 @@ class _ChatScreenState
                   fontSize: 11,
                   fontWeight:
                       FontWeight.bold,
-                  color:
-                      Colors.grey.shade700,
+                  color: Colors
+                      .grey
+                      .shade700,
                 ),
               ),
+
+            if (!isMe)
+              const SizedBox(
+                  height: 3),
 
             Text(
               msg.text,
@@ -376,12 +463,11 @@ class _ChatScreenState
             ),
 
             const SizedBox(
-              height: 4,
-            ),
+                height: 3),
 
             Text(
               intl.DateFormat(
-                'd/M - h:mm a',
+                'h:mm a',
               ).format(
                 msg.createdAt,
               ),
