@@ -7,7 +7,6 @@ class AnnouncementMessage {
   final String senderName;
   final String senderId;
   final bool isAnnouncement;
-  final String chatType; // general أو private
   final String? stage;
   final DateTime createdAt;
 
@@ -18,8 +17,7 @@ class AnnouncementMessage {
     required this.senderName,
     required this.senderId,
     required this.isAnnouncement,
-    required this.chatType,
-    required this.stage,
+    this.stage,
     required this.createdAt,
   });
 
@@ -30,7 +28,6 @@ class AnnouncementMessage {
       'senderName': senderName,
       'senderId': senderId,
       'isAnnouncement': isAnnouncement,
-      'chatType': chatType,
       'stage': stage,
       'createdAt': Timestamp.fromDate(createdAt),
     };
@@ -42,6 +39,12 @@ class AnnouncementMessage {
   ) {
     final createdAt = map['createdAt'];
 
+    DateTime date = DateTime.now();
+
+    if (createdAt is Timestamp) {
+      date = createdAt.toDate();
+    }
+
     return AnnouncementMessage(
       id: id,
       chatId: map['chatId']?.toString() ?? '',
@@ -49,11 +52,8 @@ class AnnouncementMessage {
       senderName: map['senderName']?.toString() ?? '',
       senderId: map['senderId']?.toString() ?? '',
       isAnnouncement: map['isAnnouncement'] == true,
-      chatType: map['chatType']?.toString() ?? 'private',
       stage: map['stage']?.toString(),
-      createdAt: createdAt is Timestamp
-          ? createdAt.toDate()
-          : DateTime.now(),
+      createdAt: date,
     );
   }
 }
