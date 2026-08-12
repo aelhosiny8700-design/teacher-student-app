@@ -7,7 +7,8 @@ class AnnouncementMessage {
   final String senderName;
   final String senderId;
   final bool isAnnouncement;
-  final String? classId;
+  final String chatType; // general أو private
+  final String? stage;
   final DateTime createdAt;
 
   AnnouncementMessage({
@@ -17,7 +18,8 @@ class AnnouncementMessage {
     required this.senderName,
     required this.senderId,
     required this.isAnnouncement,
-    this.classId,
+    required this.chatType,
+    required this.stage,
     required this.createdAt,
   });
 
@@ -28,7 +30,8 @@ class AnnouncementMessage {
       'senderName': senderName,
       'senderId': senderId,
       'isAnnouncement': isAnnouncement,
-      'classId': classId,
+      'chatType': chatType,
+      'stage': stage,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -37,17 +40,20 @@ class AnnouncementMessage {
     String id,
     Map<String, dynamic> map,
   ) {
+    final createdAt = map['createdAt'];
+
     return AnnouncementMessage(
       id: id,
-      chatId: map['chatId'] ?? '',
-      text: map['text'] ?? '',
-      senderName: map['senderName'] ?? '',
-      senderId: map['senderId'] ?? '',
-      isAnnouncement: map['isAnnouncement'] ?? false,
-      classId: map['classId'],
-      createdAt:
-          (map['createdAt'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
+      chatId: map['chatId']?.toString() ?? '',
+      text: map['text']?.toString() ?? '',
+      senderName: map['senderName']?.toString() ?? '',
+      senderId: map['senderId']?.toString() ?? '',
+      isAnnouncement: map['isAnnouncement'] == true,
+      chatType: map['chatType']?.toString() ?? 'private',
+      stage: map['stage']?.toString(),
+      createdAt: createdAt is Timestamp
+          ? createdAt.toDate()
+          : DateTime.now(),
     );
   }
 }
