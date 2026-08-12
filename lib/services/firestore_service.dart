@@ -6,12 +6,11 @@ import '../models/message_model.dart';
 import '../models/user_model.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _db =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // =========================================================
+  // ============================================================
   // المراحل الدراسية
-  // =========================================================
+  // ============================================================
 
   static const List<String> stages = [
     'أولى ابتدائي',
@@ -28,77 +27,29 @@ class FirestoreService {
     'ثالثة ثانوي',
   ];
 
-  static String stageKey(String stage) {
-    switch (stage) {
-      case 'أولى ابتدائي':
-        return 'primary_1';
-
-      case 'ثانية ابتدائي':
-        return 'primary_2';
-
-      case 'ثالثة ابتدائي':
-        return 'primary_3';
-
-      case 'رابعة ابتدائي':
-        return 'primary_4';
-
-      case 'خامسة ابتدائي':
-        return 'primary_5';
-
-      case 'سادسة ابتدائي':
-        return 'primary_6';
-
-      case 'أولى إعدادي':
-        return 'prep_1';
-
-      case 'ثانية إعدادي':
-        return 'prep_2';
-
-      case 'ثالثة إعدادي':
-        return 'prep_3';
-
-      case 'أولى ثانوي':
-        return 'secondary_1';
-
-      case 'ثانية ثانوي':
-        return 'secondary_2';
-
-      case 'ثالثة ثانوي':
-        return 'secondary_3';
-
-      default:
-        return 'unknown';
-    }
-  }
-
-  // =========================================================
+  // ============================================================
   // المحتوى
-  // =========================================================
+  // ============================================================
 
   Future<void> addContent(ContentItem item) async {
-    await _db
-        .collection('content')
-        .add(item.toMap());
+    await _db.collection('content').add(item.toMap());
   }
 
   Stream<List<ContentItem>> getContentStream() {
     return _db
         .collection('content')
+        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-      final list = snapshot.docs
-          .map(
-            (doc) =>
-                ContentItem.fromMap(doc.id, doc.data()),
-          )
-          .toList();
-
-      list.sort((a, b) {
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
-      return list;
-    });
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => ContentItem.fromMap(
+                  doc.id,
+                  doc.data(),
+                ),
+              )
+              .toList(),
+        );
   }
 
   Stream<List<ContentItem>> getContentStreamByStage(
@@ -111,52 +62,48 @@ class FirestoreService {
         .map((snapshot) {
       final list = snapshot.docs
           .map(
-            (doc) =>
-                ContentItem.fromMap(doc.id, doc.data()),
-          )
-          .toList();
-
-      list.sort((a, b) {
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
-      return list;
-    });
-  }
-
-  Future<void> deleteContent(String id) async {
-    await _db
-        .collection('content')
-        .doc(id)
-        .delete();
-  }
-
-  // =========================================================
-  // الاختبارات
-  // =========================================================
-
-  Future<void> addQuiz(Quiz quiz) async {
-    await _db
-        .collection('quizzes')
-        .add(quiz.toMap());
-  }
-
-  Stream<List<Quiz>> getQuizzesStream() {
-    return _db
-        .collection('quizzes')
-        .snapshots()
-        .map((snapshot) {
-      final list = snapshot.docs
-          .map(
-            (doc) => Quiz.fromMap(
+            (doc) => ContentItem.fromMap(
               doc.id,
               doc.data(),
             ),
           )
           .toList();
 
+      list.sort(
+        (a, b) => b.createdAt.compareTo(a.createdAt),
+      );
+
       return list;
     });
+  }
+
+  Future<void> deleteContent(String id) async {
+    await _db.collection('content').doc(id).delete();
+  }
+
+  // ============================================================
+  // الاختبارات
+  // ============================================================
+
+  Future<void> addQuiz(Quiz quiz) async {
+    await _db.collection('quizzes').add(quiz.toMap());
+  }
+
+  Stream<List<Quiz>> getQuizzesStream() {
+    return _db
+        .collection('quizzes')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => Quiz.fromMap(
+                  doc.id,
+                  doc.data(),
+                ),
+              )
+              .toList(),
+        );
   }
 
   Future<void> submitQuizResult(
@@ -180,16 +127,17 @@ class FirestoreService {
         .map(
           (snapshot) => snapshot.docs
               .map(
-                (doc) =>
-                    QuizResult.fromMap(doc.data()),
+                (doc) => QuizResult.fromMap(
+                  doc.data(),
+                ),
               )
               .toList(),
         );
   }
 
-  // =========================================================
-  // الشات
-  // =========================================================
+  // ============================================================
+  // معرفات الشات
+  // ============================================================
 
   static String buildPrivateChatId(
     String uid1,
@@ -203,8 +151,14 @@ class FirestoreService {
   static String buildGeneralChatId(
     String stage,
   ) {
-    return 'general_${stageKey(stage)}';
+    final safeStage = stage.trim();
+
+    return 'general_${safeStage.hashCode.abs()}';
   }
+
+  // ============================================================
+  // الرسائل
+  // ============================================================
 
   Future<void> sendMessage(
     AnnouncementMessage message,
@@ -214,8 +168,9 @@ class FirestoreService {
         .add(message.toMap());
   }
 
-  Stream<List<AnnouncementMessage>>
-      getMessagesStream(String chatId) {
+  Stream<List<AnnouncementMessage>> getMessagesStream(
+    String chatId,
+  ) {
     return _db
         .collection('messages')
         .where(
@@ -224,23 +179,20 @@ class FirestoreService {
         )
         .snapshots()
         .map((snapshot) {
-      final list = snapshot.docs
+      final messages = snapshot.docs
           .map(
-            (doc) =>
-                AnnouncementMessage.fromMap(
+            (doc) => AnnouncementMessage.fromMap(
               doc.id,
               doc.data(),
             ),
           )
           .toList();
 
-      list.sort((a, b) {
-        return a.createdAt.compareTo(
-          b.createdAt,
-        );
-      });
+      messages.sort(
+        (a, b) => a.createdAt.compareTo(b.createdAt),
+      );
 
-      return list;
+      return messages;
     });
   }
 
@@ -253,9 +205,9 @@ class FirestoreService {
         .delete();
   }
 
-  // =========================================================
+  // ============================================================
   // الطلاب
-  // =========================================================
+  // ============================================================
 
   Stream<List<AppUser>> getStudentsStream() {
     return _db
@@ -265,39 +217,20 @@ class FirestoreService {
           isEqualTo: 'student',
         )
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map(
-            (doc) =>
-                AppUser.fromMap(doc.data()),
-          )
-          .toList();
-    });
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => AppUser.fromMap(
+                  doc.data(),
+                ),
+              )
+              .toList(),
+        );
   }
 
-  Stream<List<AppUser>> getStudentsByStage(
-    String stage,
-  ) {
-    return _db
-        .collection('users')
-        .where(
-          'role',
-          isEqualTo: 'student',
-        )
-        .where(
-          'stage',
-          isEqualTo: stage,
-        )
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map(
-            (doc) =>
-                AppUser.fromMap(doc.data()),
-          )
-          .toList();
-    });
-  }
+  // ============================================================
+  // المدرسين
+  // ============================================================
 
   Stream<List<AppUser>> getTeachersStream() {
     return _db
@@ -307,13 +240,14 @@ class FirestoreService {
           isEqualTo: 'teacher',
         )
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map(
-            (doc) =>
-                AppUser.fromMap(doc.data()),
-          )
-          .toList();
-    });
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => AppUser.fromMap(
+                  doc.data(),
+                ),
+              )
+              .toList(),
+        );
   }
 }
