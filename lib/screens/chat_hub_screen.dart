@@ -14,16 +14,22 @@ class ChatHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (user.isTeacher) {
-      return _TeacherChats(user: user);
-    }
-
-    return _StudentChats(user: user);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('الرسائل'),
+        backgroundColor:
+            const Color(0xFF2E5AAC),
+        foregroundColor: Colors.white,
+      ),
+      body: user.isTeacher
+          ? _TeacherChats(user: user)
+          : _StudentChats(user: user),
+    );
   }
 }
 
 // ============================================================
-// شات الطالب
+// الطالب
 // ============================================================
 
 class _StudentChats extends StatelessWidget {
@@ -40,20 +46,23 @@ class _StudentChats extends StatelessWidget {
     if (stage == null ||
         stage.trim().isEmpty) {
       return const Center(
-        child: Text(
-          'لم يتم تحديد المرحلة الدراسية لحسابك',
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text(
+            'لم يتم تحديد المرحلة الدراسية لحسابك',
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
 
     return ListView(
-      padding:
-          const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       children: [
         const Text(
           'الشات العام',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 19,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -64,7 +73,7 @@ class _StudentChats extends StatelessWidget {
           icon: Icons.groups,
           title: 'شات $stage',
           subtitle:
-              'المحادثة العامة لطلاب المرحلة',
+              'المحادثة العامة لطلاب $stage',
           color:
               const Color(0xFF2E5AAC),
           onTap: () {
@@ -81,8 +90,7 @@ class _StudentChats extends StatelessWidget {
                     ChatScreen(
                   user: user,
                   chatId: chatId,
-                  title:
-                      'شات $stage',
+                  title: 'شات $stage',
                   isGeneral: true,
                   stage: stage,
                 ),
@@ -91,13 +99,12 @@ class _StudentChats extends StatelessWidget {
           },
         ),
 
-        const SizedBox(
-            height: 24),
+        const SizedBox(height: 28),
 
         const Text(
           'الشات الخاص',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 19,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -107,15 +114,20 @@ class _StudentChats extends StatelessWidget {
         StreamBuilder<List<AppUser>>(
           stream: FirestoreService()
               .getTeachersStream(),
-          builder:
-              (context, snapshot) {
-            if (snapshot
-                    .connectionState ==
-                ConnectionState
-                    .waiting) {
+          builder: (context, snapshot) {
+            if (snapshot.connectionState ==
+                ConnectionState.waiting) {
               return const Center(
                 child:
                     CircularProgressIndicator(),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'حدث خطأ: ${snapshot.error}',
+                ),
               );
             }
 
@@ -125,13 +137,12 @@ class _StudentChats extends StatelessWidget {
             if (teachers.isEmpty) {
               return const _EmptyCard(
                 text:
-                    'لا يوجد مدرس متاح حاليًا',
+                    'لا يوجد مدرسون متاحون حاليًا',
               );
             }
 
             return Column(
-              children:
-                  teachers.map(
+              children: teachers.map(
                 (teacher) {
                   final chatId =
                       FirestoreService
@@ -142,8 +153,7 @@ class _StudentChats extends StatelessWidget {
 
                   return Padding(
                     padding:
-                        const EdgeInsets
-                            .only(
+                        const EdgeInsets.only(
                       bottom: 10,
                     ),
                     child: _ChatCard(
@@ -155,7 +165,8 @@ class _StudentChats extends StatelessWidget {
                           'محادثة خاصة مع المدرس',
                       color:
                           const Color(
-                              0xFF43A047),
+                        0xFF43A047,
+                      ),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -163,12 +174,10 @@ class _StudentChats extends StatelessWidget {
                             builder: (_) =>
                                 ChatScreen(
                               user: user,
-                              chatId:
-                                  chatId,
+                              chatId: chatId,
                               title:
                                   'مستر ${teacher.name}',
-                              isGeneral:
-                                  false,
+                              isGeneral: false,
                             ),
                           ),
                         );
@@ -186,7 +195,7 @@ class _StudentChats extends StatelessWidget {
 }
 
 // ============================================================
-// شات المدرس
+// المدرس
 // ============================================================
 
 class _TeacherChats extends StatelessWidget {
@@ -205,65 +214,60 @@ class _TeacherChats extends StatelessWidget {
         const Text(
           'الشات العام للمراحل',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 19,
             fontWeight: FontWeight.bold,
           ),
         ),
 
         const SizedBox(height: 10),
 
-        ...FirestoreService.stages
-            .map(
-              (stage) => Padding(
-                padding:
-                    const EdgeInsets.only(
-                  bottom: 10,
-                ),
-                child: _ChatCard(
-                  icon:
-                      Icons.groups,
-                  title:
-                      'شات $stage',
-                  subtitle:
-                      'الشات العام للمرحلة',
-                  color:
-                      const Color(
-                          0xFF2E5AAC),
-                  onTap: () {
-                    final chatId =
-                        FirestoreService
-                            .buildGeneralChatId(
-                      stage,
-                    );
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            ChatScreen(
-                          user: user,
-                          chatId:
-                              chatId,
-                          title:
-                              'شات $stage',
-                          isGeneral:
-                              true,
-                          stage: stage,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+        ...FirestoreService.stages.map(
+          (stage) {
+            return Padding(
+              padding:
+                  const EdgeInsets.only(
+                bottom: 10,
               ),
-            )
-            .toList(),
+              child: _ChatCard(
+                icon: Icons.groups,
+                title: 'شات $stage',
+                subtitle:
+                    'الشات العام للمرحلة',
+                color:
+                    const Color(0xFF2E5AAC),
+                onTap: () {
+                  final chatId =
+                      FirestoreService
+                          .buildGeneralChatId(
+                    stage,
+                  );
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ChatScreen(
+                        user: user,
+                        chatId: chatId,
+                        title:
+                            'شات $stage',
+                        isGeneral: true,
+                        stage: stage,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
 
         const SizedBox(height: 18),
 
         const Text(
           'الشات الخاص بالطلاب',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 19,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -273,12 +277,9 @@ class _TeacherChats extends StatelessWidget {
         StreamBuilder<List<AppUser>>(
           stream: FirestoreService()
               .getStudentsStream(),
-          builder:
-              (context, snapshot) {
-            if (snapshot
-                    .connectionState ==
-                ConnectionState
-                    .waiting) {
+          builder: (context, snapshot) {
+            if (snapshot.connectionState ==
+                ConnectionState.waiting) {
               return const Center(
                 child:
                     CircularProgressIndicator(),
@@ -302,8 +303,7 @@ class _TeacherChats extends StatelessWidget {
             }
 
             return Column(
-              children:
-                  students.map(
+              children: students.map(
                 (student) {
                   final chatId =
                       FirestoreService
@@ -314,8 +314,7 @@ class _TeacherChats extends StatelessWidget {
 
                   return Padding(
                     padding:
-                        const EdgeInsets
-                            .only(
+                        const EdgeInsets.only(
                       bottom: 10,
                     ),
                     child: _ChatCard(
@@ -328,7 +327,8 @@ class _TeacherChats extends StatelessWidget {
                               'مرحلة غير محددة',
                       color:
                           const Color(
-                              0xFF43A047),
+                        0xFF43A047,
+                      ),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -336,12 +336,10 @@ class _TeacherChats extends StatelessWidget {
                             builder: (_) =>
                                 ChatScreen(
                               user: user,
-                              chatId:
-                                  chatId,
+                              chatId: chatId,
                               title:
                                   student.name,
-                              isGeneral:
-                                  false,
+                              isGeneral: false,
                             ),
                           ),
                         );
@@ -359,7 +357,7 @@ class _TeacherChats extends StatelessWidget {
 }
 
 // ============================================================
-// كارت الشات
+// كارت
 // ============================================================
 
 class _ChatCard
@@ -379,12 +377,12 @@ class _ChatCard
   });
 
   @override
-  Widget build(
-      BuildContext context) {
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
       borderRadius:
           BorderRadius.circular(16),
+      elevation: 1,
       child: InkWell(
         onTap: onTap,
         borderRadius:
@@ -401,8 +399,10 @@ class _ChatCard
                     BoxDecoration(
                   color:
                       color.withOpacity(
-                          0.12),
-                  shape: BoxShape.circle,
+                    0.12,
+                  ),
+                  shape:
+                      BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
@@ -410,10 +410,9 @@ class _ChatCard
                   size: 26,
                 ),
               ),
-
               const SizedBox(
-                  width: 14),
-
+                width: 14,
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -430,7 +429,8 @@ class _ChatCard
                       ),
                     ),
                     const SizedBox(
-                        height: 4),
+                      height: 4,
+                    ),
                     Text(
                       subtitle,
                       style:
@@ -443,9 +443,9 @@ class _ChatCard
                   ],
                 ),
               ),
-
               const Icon(
-                Icons.arrow_forward_ios,
+                Icons
+                    .arrow_forward_ios,
                 size: 16,
                 color:
                     Colors.grey,
@@ -467,8 +467,7 @@ class _EmptyCard
   });
 
   @override
-  Widget build(
-      BuildContext context) {
+  Widget build(BuildContext context) {
     return Container(
       padding:
           const EdgeInsets.all(20),
