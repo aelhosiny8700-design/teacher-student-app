@@ -120,6 +120,25 @@ class AuthService {
     }
   }
 
+  /// يبعت إيميل فيه رابط لإعادة تعيين كلمة السر.
+  /// بترجع null لو نجح الإرسال، أو رسالة خطأ واضحة لو فشل.
+  Future<String?> sendPasswordResetEmail(String email) async {
+    try {
+      final trimmedEmail = email.trim();
+
+      if (trimmedEmail.isEmpty || !trimmedEmail.contains('@')) {
+        return 'أدخل إيميل صحيح';
+      }
+
+      await _auth.sendPasswordResetEmail(email: trimmedEmail);
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _mapError(e.code);
+    } catch (e) {
+      return 'خطأ: $e';
+    }
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
   }
@@ -153,3 +172,5 @@ class AuthService {
     }
   }
 }
+
+
