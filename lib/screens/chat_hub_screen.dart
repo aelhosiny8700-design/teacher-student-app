@@ -42,6 +42,7 @@ class _StudentChats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stage = user.stage;
+    final teacherUid = user.linkedTeacherUid;
 
     if (stage == null ||
         stage.trim().isEmpty) {
@@ -50,6 +51,18 @@ class _StudentChats extends StatelessWidget {
           padding: EdgeInsets.all(20),
           child: Text(
             'لم يتم تحديد المرحلة الدراسية لحسابك',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    if (teacherUid == null || teacherUid.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text(
+            'لا يوجد معلم مرتبط بحسابك حاليًا',
             textAlign: TextAlign.center,
           ),
         ),
@@ -80,6 +93,7 @@ class _StudentChats extends StatelessWidget {
             final chatId =
                 FirestoreService
                     .buildGeneralChatId(
+              teacherUid,
               stage,
             );
 
@@ -113,7 +127,7 @@ class _StudentChats extends StatelessWidget {
 
         StreamBuilder<List<AppUser>>(
           stream: FirestoreService()
-              .getTeachersStream(),
+              .getLinkedTeacherStream(teacherUid),
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -239,6 +253,7 @@ class _TeacherChats extends StatelessWidget {
                   final chatId =
                       FirestoreService
                           .buildGeneralChatId(
+                    user.uid,
                     stage,
                   );
 
@@ -276,7 +291,7 @@ class _TeacherChats extends StatelessWidget {
 
         StreamBuilder<List<AppUser>>(
           stream: FirestoreService()
-              .getStudentsStream(),
+              .getStudentsStream(user.uid),
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -489,3 +504,5 @@ class _EmptyCard
     );
   }
 }
+
+
