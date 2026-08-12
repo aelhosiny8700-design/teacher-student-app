@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AnnouncementMessage {
   final String id;
+  final String chatId; // teacherUid_studentUid — فاضي لو تنبيه عام
   final String text;
   final String senderName;
   final String senderId;
@@ -10,6 +11,7 @@ class AnnouncementMessage {
 
   AnnouncementMessage({
     required this.id,
+    required this.chatId,
     required this.text,
     required this.senderName,
     required this.senderId,
@@ -19,6 +21,7 @@ class AnnouncementMessage {
 
   Map<String, dynamic> toMap() {
     return {
+      'chatId': chatId,
       'text': text,
       'senderName': senderName,
       'senderId': senderId,
@@ -30,6 +33,7 @@ class AnnouncementMessage {
   factory AnnouncementMessage.fromMap(String id, Map<String, dynamic> map) {
     return AnnouncementMessage(
       id: id,
+      chatId: map['chatId'] ?? '',
       text: map['text'] ?? '',
       senderName: map['senderName'] ?? '',
       senderId: map['senderId'] ?? '',
@@ -38,3 +42,5 @@ class AnnouncementMessage {
     );
   }
 }
+
+
