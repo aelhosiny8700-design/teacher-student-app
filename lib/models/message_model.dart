@@ -2,11 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AnnouncementMessage {
   final String id;
-  final String chatId; // teacherUid_studentUid — فاضي لو تنبيه عام
+  final String chatId;
   final String text;
   final String senderName;
   final String senderId;
-  final bool isAnnouncement; // true = تنبيه عام من المدرس
+  final bool isAnnouncement;
+  final String? classId;
   final DateTime createdAt;
 
   AnnouncementMessage({
@@ -16,6 +17,7 @@ class AnnouncementMessage {
     required this.senderName,
     required this.senderId,
     required this.isAnnouncement,
+    this.classId,
     required this.createdAt,
   });
 
@@ -26,11 +28,15 @@ class AnnouncementMessage {
       'senderName': senderName,
       'senderId': senderId,
       'isAnnouncement': isAnnouncement,
+      'classId': classId,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 
-  factory AnnouncementMessage.fromMap(String id, Map<String, dynamic> map) {
+  factory AnnouncementMessage.fromMap(
+    String id,
+    Map<String, dynamic> map,
+  ) {
     return AnnouncementMessage(
       id: id,
       chatId: map['chatId'] ?? '',
@@ -38,9 +44,10 @@ class AnnouncementMessage {
       senderName: map['senderName'] ?? '',
       senderId: map['senderId'] ?? '',
       isAnnouncement: map['isAnnouncement'] ?? false,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      classId: map['classId'],
+      createdAt:
+          (map['createdAt'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
     );
   }
 }
-
-
