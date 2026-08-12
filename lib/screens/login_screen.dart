@@ -62,16 +62,19 @@ class _LoginScreenState extends State<LoginScreen> {
         stage: _role == 'student' ? _stage : null,
         teacherCode: _role == 'student' ? _teacherCodeController.text.trim() : null,
       );
-
-      // لو التسجيل نجح لكن الطالب معلق، signUp بترجع رسالة نجاح مش خطأ حقيقي
+// لو التسجيل نجح لكن الطالب معلق، signUp بترجع رسالة نجاح مش خطأ حقيقي
       if (error != null && error.contains('تم إنشاء حسابك بنجاح')) {
         if (!mounted) return;
         setState(() {
           _loading = false;
           _info = error;
           _error = null;
-          _isSignUp = false; // نرجعه لشاشة تسجيل الدخول
+          _isSignUp = false;
         });
+        // دلوقتي، وبعد ما الرسالة اتعرضت فعلاً على الشاشة (setState اتنفذت)،
+        // نعمل signOut. بكده الرسالة مضمون ظهورها قبل أي rebuild
+        // ناتج عن تغيّر حالة تسجيل الدخول.
+        await _authService.signOut();
         return;
       }
     } else {
