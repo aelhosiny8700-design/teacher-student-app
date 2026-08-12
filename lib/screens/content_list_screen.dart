@@ -59,6 +59,14 @@ class _ContentListScreenState extends State<ContentListScreen>
     }
   }
 
+  /// المعلم يشوف محتواه هو، والطالب يشوف محتوى المعلم المرتبط بيه
+  String get _effectiveTeacherUid {
+    if (widget.user.isTeacher) {
+      return widget.user.uid;
+    }
+    return widget.user.linkedTeacherUid ?? '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -85,8 +93,23 @@ class _ContentListScreenState extends State<ContentListScreen>
   }
 
   Widget _buildList(String stage) {
+    final teacherUid = _effectiveTeacherUid;
+
+    if (teacherUid.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'لا يوجد معلم مرتبط بحسابك حاليًا.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey, fontSize: 15),
+          ),
+        ),
+      );
+    }
+
     return StreamBuilder<List<ContentItem>>(
-      stream: _service.getContentStreamByStage(stage),
+      stream: _service.getContentStreamByStage(teacherUid, stage),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
