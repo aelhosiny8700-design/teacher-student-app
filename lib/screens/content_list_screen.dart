@@ -1,82 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart' as intl;
 import '../models/user_model.dart';
-import '../models/message_model.dart';
+import '../models/content_model.dart';
 import '../services/firestore_service.dart';
 
-class ChatScreen extends StatefulWidget {
-  final AppUser user; // المستخدم الحالي (اللي فاتح الشات)
-  final AppUser? otherUser; // الطرف التاني في الشات (للمعلم: الطالب)
-  const ChatScreen({super.key, required this.user, this.otherUser});
+class ContentListScreen extends StatefulWidget {
+  final AppUser user;
+  const ContentListScreen({super.key, required this.user});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<ContentListScreen> createState() => _ContentListScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
-  final _controller = TextEditingController();
+class _ContentListScreenState extends State<ContentListScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   final _service = FirestoreService();
-  final _scrollController = ScrollController();
-
-  late final String _chatId;
 
   @override
   void initState() {
     super.initState();
-    // لو المستخدم معلم لازم يكون معاه otherUser (الطالب) عشان نبني chatId خاص
-    final otherUid = widget.otherUser?.uid ?? widget.user.uid;
-    _chatId = FirestoreService.buildChatId(widget.user.uid, otherUid);
+    _tabController = TabController(length: EduStage.all.length, vsync: this);
   }
 
-  Future<void> _send() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    await _service.sendMessage(AnnouncementMessage(
-      id: '',
-      chatId: _chatId,
-      text: text,
-      senderName: widget.user.name,
-      senderId: widget.user.uid,
-      isAnnouncement: false,
-      createdAt: DateTime.now(),
-    ));
-
-    _controller.clear();
-
-    // نزول لآخر رسالة بعد إرسالها
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
-  Future<void> _confirmDelete(AnnouncementMessage msg) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('حذف الرسالة'),
-        content: const Text('متأكد إنك عاوز تحذف الرسالة دي؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'image':
+        return Icons.image;
+      case 'video':
+        return Icons.videocam;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
 
-    if (confirmed == true) {
-      await _service.deleteMessage(msg.id);
+  Color _colorForType(String type) {
+    switch (type) {
+      case 'image':
+        return Colors.purple;
+      case 'video':
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  Future<void> _openContent(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -84,162 +63,77 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Expanded(
-          child: StreamBuilder<List<AnnouncementMessage>>(
-            stream: _service.getMessagesStream(_chatId),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final messages = snapshot.data ?? [];
-              if (messages.isEmpty) {
-                return const Center(
-                  child: Text('مفيش رسائل لسه', style: TextStyle(color: Colors.grey)),
-                );
-              }
-
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_scrollController.hasClients) {
-                  _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-                }
-              });
-
-              return ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(12),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final msg = messages[index];
-                  final isMe = msg.senderId == widget.user.uid;
-                  return _buildBubble(msg, isMe);
-                },
-              );
-            },
+        Material(
+          color: const Color(0xFFFF2E5AAC),
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: EduStage.all.map((s) => Tab(text: s)).toList(),
           ),
         ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: widget.user.isTeacher
-                          ? 'اكتب تنبيه عام للطلبة...؟'
-                          : 'اكتب رسالتك...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
-                    onSubmitted: (_) => _send(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: const Color(0xFF2E5AAC),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _send,
-                  ),
-                ),
-              ],
-            ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: EduStage.all.map((stage) => _buildList(stage)).toList(),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildBubble(AnnouncementMessage msg, bool isMe) {
-    // الطالب يقدر يحذف رسالته هو بس، المعلم يقدر يحذف أي رسالة
-    final canDelete = widget.user.isTeacher || isMe;
+  Widget _buildList(String stage) {
+    return StreamBuilder<List<ContentItem>>(
+      stream: _service.getContentStreamByStage(stage),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'مفيش محتوى هنا.\nهيظهر هنا أي ملفات أو صور أو فيديوهات يرفعها المدرس.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 15),
+              ),
+            ),
+          );
+        }
 
-    if (msg.isAnnouncement) {
-      // رسالة تنبيه عام من المدرس - تظهر بشكل مميز للكل
-      return GestureDetector(
-        onLongPress: canDelete ? () => _confirmDelete(msg) : null,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
+        return ListView.builder(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF3CD),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFFFE69C)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.campaign, size: 16, color: Color(0xFF856404)),
-                  const SizedBox(width: 6),
-                  Text(
-                    'تنبيه من ${msg.senderName}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF856404),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(msg.text),
-              const SizedBox(height: 4),
-              Text(
-                intl.DateFormat('d/M - h:mm a').format(msg.createdAt),
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        onLongPress: canDelete ? () => _confirmDelete(msg) : null,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-          decoration: BoxDecoration(
-            color: isMe ? const Color(0xFF2E5AAC) : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!isMe)
-                Text(
-                  msg.senderName,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isMe ? Colors.white70 : Colors.grey.shade700,
-                  ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: _colorForType(item.type).withOpacity(0.15),
+                  child: Icon(_iconForType(item.type), color: _colorForType(item.type)),
                 ),
-              Text(
-                msg.text,
-                style: TextStyle(color: isMe ? Colors.white : Colors.black87),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                intl.DateFormat('d/M - h:mm a').format(msg.createdAt),
-                style: TextStyle(
-                  fontSize: 9,
-                  color: isMe ? Colors.white70 : Colors.grey.shade600,
+                title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  '${item.description}\n${item.uploadedBy} • ${intl.DateFormat('d/M/yyyy').format(item.createdAt)}',
                 ),
+                isThreeLine: true,
+                trailing: widget.user.isTeacher
+                    ? IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _service.deleteContent(item.id),
+                      )
+                    : const Icon(Icons.open_in_new),
+                onTap: () => _openContent(item.url),
               ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }
