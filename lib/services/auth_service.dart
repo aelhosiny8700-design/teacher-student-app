@@ -70,8 +70,9 @@ class AuthService {
       await _db.collection('users').doc(uid).set(newUser.toMap());
 
       if (role == 'student' && status == 'pending') {
-        // الخروج التلقائي الفوري لتفادي تحويل الشاشات اللحظي
-        await _auth.signOut();
+        // لا نعمل signOut هنا خالص. المسؤولية دي بقت على LoginScreen،
+        // عشان تضمن عرض رسالة النجاح للمستخدم الأول قبل ما
+        // authStateChanges يتغير ويعمل rebuild لكل الشاشة.
         return 'تم إنشاء حسابك بنجاح، وهيتم تفعيله بعد موافقة المعلم';
       }
 
