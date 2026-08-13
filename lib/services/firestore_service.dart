@@ -132,7 +132,10 @@ class FirestoreService {
   Stream<List<ContentItem>> getContentStream(String teacherUid) {
     return _db
         .collection('content')
-        .where('teacherUid', isEqualTo: teacherUid)
+        // تصحيح: الحقل المحفوظ فعليًا في ContentItem.toMap() اسمه
+        // "teacherId" مش "teacherUid"، فكان لازم نطابق نفس الاسم
+        // هنا وإلا الكويري ترجع نتيجة فاضية دايمًا.
+        .where('teacherId', isEqualTo: teacherUid)
         .snapshots()
         .map((snapshot) {
       final list = snapshot.docs
@@ -151,7 +154,8 @@ class FirestoreService {
   ) {
     return _db
         .collection('content')
-        .where('teacherUid', isEqualTo: teacherUid)
+        // نفس التصحيح: teacherId بدل teacherUid
+        .where('teacherId', isEqualTo: teacherUid)
         .where('stage', isEqualTo: stage)
         .snapshots()
         .map((snapshot) {
