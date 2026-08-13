@@ -8,6 +8,8 @@ import 'quiz_list_screen.dart';
 import 'quiz_create_screen.dart';
 import 'chat_hub_screen.dart';
 import 'teacher_profile_screen.dart';
+import 'pending_approvals_screen.dart';
+import '../services/firestore_service.dart';
 
 class AppColors {
   static const primary = Color(0xFF2E5AAC);
@@ -59,6 +61,48 @@ class _TeacherHomeState extends State<TeacherHome> {
           ],
         ),
         actions: [
+          // زرار طلبات انضمام الطلاب، مع نقطة حمراء لو فيه طلبات معلقة
+          StreamBuilder<List<AppUser>>(
+            stream: FirestoreService().getPendingStudentsStream(widget.user.uid),
+            builder: (context, snapshot) {
+              final pendingCount = snapshot.data?.length ?? 0;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.person_add_alt_1),
+                    tooltip: 'طلبات انضمام الطلاب',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PendingApprovalsScreen(teacher: widget.user),
+                        ),
+                      );
+                    },
+                  ),
+                  if (pendingCount > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '$pendingCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.vpn_key_outlined),
             tooltip: 'كود الدعوة',
@@ -240,6 +284,8 @@ class _StatsRow extends StatelessWidget {
             stream: FirebaseFirestore.instance
                 .collection('users')
                 .where('role', isEqualTo: 'student')
+                .where('linkedTeacherUid', isEqualTo: teacherUid)
+                .where('status', isEqualTo: 'approved')
                 .snapshots(),
           ),
         ),
@@ -251,7 +297,7 @@ class _StatsRow extends StatelessWidget {
             label: 'المحتوى',
             stream: FirebaseFirestore.instance
                 .collection('content')
-                .where('teacherUid', isEqualTo: teacherUid)
+                .where('teacherId', isEqualTo: teacherUid)
                 .snapshots(),
           ),
         ),
@@ -355,10 +401,13 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuizCreateScreen(user: user))),
       ),
       _QuickAction(
-        icon: Icons.folder_open,
-        color: const Color(0xFFFB8C00),
-        label: 'كل المحتوى',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ContentListScreen(user: user))),
+        icon: Icons.person_add_alt_1,
+        color: const Color(0xFFE53935),
+        label: 'طلبات الانضمام',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PendingApprovalsScreen(teacher: user)),
+        ),
       ),
       _QuickAction(
         icon: Icons.chat_bubble,
@@ -441,7 +490,7 @@ class _RecentContentList extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('content')
-          .where('teacherUid', isEqualTo: teacherUid)
+          .where('teacherId', isEqualTo: teacherUid)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -467,7 +516,6 @@ class _RecentContentList extends StatelessWidget {
           );
         }
 
-        // ترتيب المحتوى أوفلاين في التطبيق لحين تجهيز الفهرس من Firebase
         final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
         sortedDocs.sort((a, b) {
           final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
