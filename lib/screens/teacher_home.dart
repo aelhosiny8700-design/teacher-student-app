@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'quiz_create_screen.dart';
+import 'quiz_results_screen.dart';
 import 'pending_approvals_screen.dart';
 import 'chat_hub_screen.dart';
 
@@ -90,9 +91,6 @@ class _TeacherHomeState extends State<TeacherHome> {
   }
 }
 
-// ==========================================
-// 1. شاشة الرئيسية للمعلم (Teacher Dashboard)
-// ==========================================
 class _TeacherDashboardTab extends StatefulWidget {
   final AppUser user;
   final Function(int) onNavigateToTab;
@@ -152,7 +150,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // الهيدر علوي
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -172,7 +169,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                     IconButton(
                       icon: const Icon(Icons.logout, color: Colors.white, size: 22),
                       onPressed: () async => await AuthService().signOut(),
-                      tooltip: 'تسجيل الخروج',
                     ),
                     Row(
                       children: [
@@ -189,7 +185,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                 ),
                 const SizedBox(height: 16),
 
-                // زرار كود المعلم
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
                   builder: (context, snapshot) {
@@ -249,7 +244,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                 const Text('الوصول السريع', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
                 const SizedBox(height: 12),
 
-                // أزرار الوصول السريع
                 GridView.count(
                   crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.25,
@@ -266,6 +260,14 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       color: const Color(0xFF059669),
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => QuizCreateScreen(user: widget.user)));
+                      },
+                    ),
+                    _QuickTile(
+                      title: 'رصد النتائج',
+                      icon: Icons.emoji_events_rounded,
+                      color: const Color(0xFFD97706),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => QuizResultsScreen(user: widget.user)));
                       },
                     ),
                     StreamBuilder<QuerySnapshot>(
@@ -291,15 +293,9 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       },
                     ),
                     _QuickTile(
-                      title: 'الرسائل والواجبات',
-                      icon: Icons.chat_bubble_rounded,
-                      color: const Color(0xFF7C3AED),
-                      onTap: () => widget.onNavigateToTab(3),
-                    ),
-                    _QuickTile(
                       title: 'إدارة الطلاب',
                       icon: Icons.people_alt_rounded,
-                      color: const Color(0xFF059669),
+                      color: const Color(0xFF7C3AED),
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => _TeacherStudentsScreen(user: widget.user)));
                       },
@@ -362,9 +358,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
   }
 }
 
-// ==========================================
-// 2. شاشة إدارة الطلاب وحذفهم
-// ==========================================
 class _TeacherStudentsScreen extends StatelessWidget {
   final AppUser user;
 
@@ -516,9 +509,6 @@ class _TeacherStudentsScreen extends StatelessWidget {
   }
 }
 
-// ==========================================
-// 3. تبويب إدارة الاختبارات للمعلم
-// ==========================================
 class _TeacherQuizzesTab extends StatelessWidget {
   final AppUser user;
 
@@ -590,9 +580,6 @@ class _TeacherQuizzesTab extends StatelessWidget {
   }
 }
 
-// ==========================================
-// 4. تبويب المحتوى المضاف
-// ==========================================
 class _UploadedContentTab extends StatelessWidget {
   final AppUser user;
   final VoidCallback onOpenUploadModal;
@@ -660,9 +647,6 @@ class _UploadedContentTab extends StatelessWidget {
   }
 }
 
-// ==========================================
-// 5. تبويب الملف الشخصي الكامل للمعلم
-// ==========================================
 class _TeacherProfileTab extends StatelessWidget {
   final AppUser user;
 
@@ -733,9 +717,6 @@ class _TeacherProfileTab extends StatelessWidget {
   }
 }
 
-// ==========================================
-// 6. نافذة رفع المحتوى مع جميع المراحل
-// ==========================================
 class _AddContentBottomSheet extends StatefulWidget {
   final String teacherUid;
 
@@ -881,9 +862,6 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
   }
 }
 
-// ==========================================
-// 7. العناصر المساعدة
-// ==========================================
 class _StatCard extends StatelessWidget {
   final String title, count;
   final IconData icon;
