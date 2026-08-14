@@ -77,7 +77,7 @@ String? studentGrade = user.stage;
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('quizzes')
-          .where('teacherUid', isEqualTo: teacherUid)
+          .where('teacherId', isEqualTo: teacherUid)
           .snapshots(),
       builder: (context, quizSnapshot) {
         if (quizSnapshot.connectionState == ConnectionState.waiting) {
