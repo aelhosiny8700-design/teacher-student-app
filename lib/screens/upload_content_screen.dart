@@ -103,7 +103,22 @@ class _UploadContentScreenState extends State<UploadContentScreen> {
 
     try {
       await FirestoreService().addContent(item);
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _titleController.clear();
+          _descController.clear();
+          _pickedFile = null;
+          _error = null;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم رفع المحتوى بنجاح! يمكنك رفع محتوى آخر الآن.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
