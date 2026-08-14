@@ -16,7 +16,7 @@ class QuizListScreen extends StatelessWidget {
       builder: (context, userSnapshot) {
         String? teacherUid = user.linkedTeacherUid;
         // دعم قراءة المرحلة سواء كانت مخزنة كـ grade أو stage
-String? studentGrade = user.stage;
+        String? studentGrade = user.stage;
         String? status = user.status;
 
         if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
@@ -74,11 +74,9 @@ String? studentGrade = user.stage;
       );
     }
 
+    // جلب جميع الاختبارات وتصفيتها برمجياً لتجنب مشاكل اختلاف أسماء الحقول (teacherId / teacherUid)
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('quizzes')
-          .where('teacherId', isEqualTo: teacherUid)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('quizzes').snapshots(),
       builder: (context, quizSnapshot) {
         if (quizSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF0062E6)));
@@ -86,13 +84,24 @@ String? studentGrade = user.stage;
 
         final quizDocs = quizSnapshot.data?.docs ?? [];
 
-        // تصفية الاختبارات لتناسب مرحلة الطالب (بفحص grade أو stage في جدول الاختبارات)
+        // تصفية ذكية للاختبارات
         final filteredQuizzes = quizDocs.where((doc) {
           final raw = doc.data();
           if (raw is! Map) return false;
           final data = raw.cast<String, dynamic>();
 
+          // 1. التحقق من المعلم (سواء مخزن بـ teacherId أو teacherUid)
+          final tId = data['teacherId']?.toString();
+          final tUid = data['teacherUid']?.toString();
+          final bool isForThisTeacher = (tId == teacherUid || tUid == teacherUid);
+          if (!isForThisTeacher) return false;
+
+          // 2. التحقق من المرحلة (لو الاختبار ليس له مرحلة مسجلة، يظهر تلقائياً)
           final quizGrade = data['grade']?.toString() ?? data['stage']?.toString();
+          if (quizGrade == null || quizGrade.isEmpty) {
+            return true;
+          }
+
           return (studentGrade == null || studentGrade.isEmpty) || (quizGrade == studentGrade);
         }).toList();
 
