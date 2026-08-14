@@ -91,6 +91,9 @@ class _TeacherHomeState extends State<TeacherHome> {
   }
 }
 
+// ==========================================
+// 1. شاشة الرئيسية للمعلم
+// ==========================================
 class _TeacherDashboardTab extends StatefulWidget {
   final AppUser user;
   final Function(int) onNavigateToTab;
@@ -286,7 +289,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => PendingApprovalsScreen(user: widget.user)),
+                              MaterialPageRoute(builder: (_) => PendingApprovalsScreen(teacher: widget.user)),
                             );
                           },
                         );
@@ -358,6 +361,9 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
   }
 }
 
+// ==========================================
+// 2. شاشة إدارة الطلاب وحذفهم
+// ==========================================
 class _TeacherStudentsScreen extends StatelessWidget {
   final AppUser user;
 
@@ -509,6 +515,9 @@ class _TeacherStudentsScreen extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 3. تبويب إدارة الاختبارات للمعلم
+// ==========================================
 class _TeacherQuizzesTab extends StatelessWidget {
   final AppUser user;
 
@@ -580,6 +589,9 @@ class _TeacherQuizzesTab extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 4. تبويب المحتوى المضاف
+// ==========================================
 class _UploadedContentTab extends StatelessWidget {
   final AppUser user;
   final VoidCallback onOpenUploadModal;
@@ -647,6 +659,9 @@ class _UploadedContentTab extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 5. تبويب الملف الشخصي للمعلم
+// ==========================================
 class _TeacherProfileTab extends StatelessWidget {
   final AppUser user;
 
@@ -717,6 +732,9 @@ class _TeacherProfileTab extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 6. نافذة رفع المحتوى
+// ==========================================
 class _AddContentBottomSheet extends StatefulWidget {
   final String teacherUid;
 
@@ -862,6 +880,9 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
   }
 }
 
+// ==========================================
+// 7. المكونات المساعدة
+// ==========================================
 class _StatCard extends StatelessWidget {
   final String title, count;
   final IconData icon;
