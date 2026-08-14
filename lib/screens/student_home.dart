@@ -199,7 +199,7 @@ class _HeaderSection extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 26,
-                      fontWeight: FontWeight.black,
+                      fontWeight: FontWeight.w900,
                       letterSpacing: 1,
                     ),
                   ),
