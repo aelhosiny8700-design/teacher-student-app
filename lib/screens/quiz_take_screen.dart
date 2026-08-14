@@ -24,7 +24,6 @@ class _QuizTakeScreenState extends State<QuizTakeScreen> {
   final Map<int, dynamic> _studentAnswers = {};
   bool _isSubmitting = false;
 
-  // دالة إرسال النتيجة لولي الأمر على الواتساب
   Future<void> _sendWhatsAppToParent({
     required String parentPhone,
     required String studentName,
@@ -33,7 +32,6 @@ class _QuizTakeScreenState extends State<QuizTakeScreen> {
   }) async {
     if (parentPhone.trim().isEmpty) return;
 
-    // تحويل رقم الموبايل للصيغة الدولية (مصر +20)
     String formattedPhone = parentPhone.trim();
     if (formattedPhone.startsWith('0')) {
       formattedPhone = '20${formattedPhone.substring(1)}';
@@ -63,7 +61,6 @@ class _QuizTakeScreenState extends State<QuizTakeScreen> {
     int totalScore = 0;
     int maxScore = 0;
 
-    // حساب الدرجات لكل سؤال بناءً على النقاط المحددة
     for (int i = 0; i < widget.questions.length; i++) {
       final q = widget.questions[i];
       final points = (q['points'] as num?)?.toInt() ?? 1;
@@ -86,18 +83,23 @@ class _QuizTakeScreenState extends State<QuizTakeScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // 1. جلب بيانات الطالب للحصول على اسمه ورقم ولي أمره
+      // 1. جلب بيانات الطالب للحصول على الاسم والمرحلة ورقم ولي الأمر
       final studentDoc = await FirebaseFirestore.instance.collection('users').doc(widget.studentUid).get();
       final studentData = studentDoc.data() ?? {};
       final String studentName = studentData['name'] ?? 'الطالب';
       final String parentPhone = studentData['parentPhone'] ?? '';
+      final String studentStage = studentData['stage'] ?? 'الصف الأول الإعدادي';
+      final String teacherUid = studentData['linkedTeacherUid'] ?? '';
 
-      // 2. حفظ النتيجة في Firebase
+      // 2. حفظ مستند النتيجة مع ربطه بالمعلم والمرحلة
       await FirebaseFirestore.instance.collection('quiz_results').add({
         'quizId': widget.quizId,
         'quizTitle': widget.quizTitle,
         'studentUid': widget.studentUid,
         'studentName': studentName,
+        'teacherUid': teacherUid,
+        'stage': studentStage,
+        'parentPhone': parentPhone,
         'score': totalScore,
         'maxScore': maxScore,
         'createdAt': FieldValue.serverTimestamp(),
@@ -133,7 +135,6 @@ class _QuizTakeScreenState extends State<QuizTakeScreen> {
                   Navigator.pop(context);
                   Navigator.pop(context);
 
-                  // فتح الواتساب لإرسال التقرير لولي الأمر
                   if (parentPhone.isNotEmpty) {
                     await _sendWhatsAppToParent(
                       parentPhone: parentPhone,
