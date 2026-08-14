@@ -43,23 +43,32 @@ class _ContentListScreenState extends State<ContentListScreen> {
     }
   }
 
+  bool _isTypeMatch(String? contentType, String filter) {
+    if (filter == 'الكل' || contentType == null || contentType.isEmpty) return true;
+    final ct = contentType.toLowerCase().trim();
+
+    if (filter.contains('فيديو') && (ct.contains('video') || ct.contains('فيديو'))) return true;
+    if ((filter.contains('مذكرة') || filter.contains('PDF')) && 
+        (ct.contains('file') || ct.contains('image') || ct.contains('pdf') || ct.contains('مذكرة'))) return true;
+    if (filter.contains('ملخص') && (ct.contains('summary') || ct.contains('ملخص'))) return true;
+    if (filter.contains('واجب') && (ct.contains('homework') || ct.contains('واجب'))) return true;
+
+    return ct == filter.toLowerCase().trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
       builder: (context, userSnapshot) {
         String? teacherUid = widget.user.linkedTeacherUid;
-        // دعم قراءة الحقل سواء كان grade أو stage
-String? studentGrade = widget.user.stage;
-        String? status = widget.user.status;
+        String? studentGrade = widget.user.stage;
 
         if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
           final rawUser = userSnapshot.data!.data();
           if (rawUser is Map) {
             teacherUid = rawUser['linkedTeacherUid']?.toString() ?? teacherUid;
-            // قراءة grade أو stage من قاعدة البيانات مباشرة
             studentGrade = rawUser['grade']?.toString() ?? rawUser['stage']?.toString() ?? studentGrade;
-            status = rawUser['status']?.toString() ?? status;
           }
         }
 
@@ -76,13 +85,13 @@ String? studentGrade = widget.user.stage;
             elevation: 0,
             centerTitle: true,
           ),
-          body: _buildBody(teacherUid, studentGrade, status),
+          body: _buildBody(teacherUid, studentGrade),
         );
       },
     );
   }
 
-  Widget _buildBody(String? teacherUid, String? studentGrade, String? status) {
+  Widget _buildBody(String? teacherUid, String? studentGrade) {
     if (teacherUid == null || teacherUid.isEmpty) {
       return Center(
         child: Padding(
@@ -99,32 +108,6 @@ String? studentGrade = widget.user.stage;
               const SizedBox(height: 8),
               const Text(
                 'يرجى إدخال كود المعلم من الشاشة الرئيسية لتتمكن من رؤية المذكرات والفيديوهات الخاصة بصفك.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // ملاحظة: إذا أردت أن يظهر المحتوى للطالب حتى لو كان في حالة pending، يمكنك إزالة هذا الشرط
-    if (status == 'pending') {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.hourglass_top_rounded, size: 64, color: Colors.amber.shade600),
-              const SizedBox(height: 16),
-              const Text(
-                'طلب الانضمام قيد الانتظار ⏳',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'تم إرسال طلبك للمعلم، وبمجرد الموافقة عليه سيظهر كل المحتوى الدراسي هنا تلقائياً.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               ),
@@ -187,12 +170,15 @@ String? studentGrade = widget.user.stage;
                 if (raw is! Map) return false;
                 final data = raw.cast<String, dynamic>();
 
-                // فحص الحقل سواء كان grade أو stage في جدول المحتويات
-                final contentGrade = data['grade']?.toString() ?? data['stage']?.toString();
+                final contentGrade = (data['grade']?.toString() ?? data['stage']?.toString())?.trim();
                 final contentType = data['type']?.toString();
+                final currentStudentGrade = studentGrade?.trim();
 
-                final bool gradeMatch = (studentGrade == null || studentGrade.isEmpty) || (contentGrade == studentGrade);
-                final bool typeMatch = _selectedTypeFilter == 'الكل' || (contentType == _selectedTypeFilter);
+                final bool gradeMatch = (currentStudentGrade == null || currentStudentGrade.isEmpty) || 
+                                        (contentGrade == null || contentGrade.isEmpty) ||
+                                        (contentGrade == currentStudentGrade);
+
+                final bool typeMatch = _isTypeMatch(contentType, _selectedTypeFilter);
 
                 return gradeMatch && typeMatch;
               }).toList();
@@ -223,7 +209,8 @@ String? studentGrade = widget.user.stage;
                   final title = data['title']?.toString() ?? 'محتوى دراسي';
                   final description = data['description']?.toString() ?? '';
                   final type = data['type']?.toString() ?? 'ملف';
-                  final fileUrl = data['fileUrl']?.toString() ?? '';
+                  
+                  final fileUrl = (data['fileUrl'] ?? data['url'])?.toString() ?? '';
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -280,15 +267,15 @@ String? studentGrade = widget.user.stage;
   }
 
   Color _getContentTypeColor(String type) {
-    if (type.contains('فيديو')) return const Color(0xFFDC2626);
-    if (type.contains('مذكرة') || type.contains('PDF')) return const Color(0xFF2563EB);
+    if (type.contains('فيديو') || type == 'video') return const Color(0xFFDC2626);
+    if (type.contains('مذكرة') || type.contains('PDF') || type == 'file') return const Color(0xFF2563EB);
     if (type.contains('واجب')) return const Color(0xFFD97706);
     return const Color(0xFF059669);
   }
 
   IconData _getContentTypeIcon(String type) {
-    if (type.contains('فيديو')) return Icons.play_circle_fill_rounded;
-    if (type.contains('مذكرة') || type.contains('PDF')) return Icons.picture_as_pdf_rounded;
+    if (type.contains('فيديو') || type == 'video') return Icons.play_circle_fill_rounded;
+    if (type.contains('مذكرة') || type.contains('PDF') || type == 'file') return Icons.picture_as_pdf_rounded;
     if (type.contains('واجب')) return Icons.assignment_rounded;
     return Icons.menu_book_rounded;
   }
