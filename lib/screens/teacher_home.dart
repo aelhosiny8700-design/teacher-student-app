@@ -182,6 +182,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
     return SingleChildScrollView(
       child: Column(
         children: [
+          // الهيدر علوي
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -220,10 +221,13 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
                   builder: (context, snapshot) {
-                    final data = snapshot.data?.data() as Map<String, dynamic>?;
-                    final currentCode = data?['teacherCode'] ?? widget.user.teacherCode;
+                    String? currentCode = widget.user.teacherCode;
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      final data = snapshot.data!.data() as Map<String, dynamic>?;
+                      currentCode = data?['teacherCode'] ?? currentCode;
+                    }
 
-                    if (currentCode == null || currentCode.toString().isEmpty) {
+                    if (currentCode == null || currentCode.isEmpty) {
                       return ElevatedButton.icon(
                         onPressed: _isGeneratingCode ? null : _generateTeacherCode,
                         icon: const Icon(Icons.vpn_key, size: 18, color: TeacherColors.primary),
@@ -239,7 +243,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         InkWell(
-                          onTap: () => _copyCodeToClipboard(currentCode),
+                          onTap: () => _copyCodeToClipboard(currentCode!),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
@@ -321,10 +325,17 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       stream: FirebaseFirestore.instance
                           .collection('users')
                           .where('linkedTeacherUid', isEqualTo: widget.user.uid)
-                          .where('status', isEqualTo: 'pending')
                           .snapshots(),
                       builder: (context, pendingSnap) {
-                        final pendingCount = pendingSnap.data?.docs.length ?? 0;
+                        int pendingCount = 0;
+                        if (pendingSnap.hasData) {
+                          final docs = pendingSnap.data!.docs;
+                          pendingCount = docs.where((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            return data['status'] == 'pending';
+                          }).length;
+                        }
+
                         return _QuickTile(
                           title: 'طلبات الانضمام',
                           icon: Icons.person_add_alt_1_rounded,
@@ -560,7 +571,7 @@ class _TeacherStudentsScreen extends StatelessWidget {
 }
 
 // ==========================================
-// 3. تبويب إدارة الاختبارات (مع إمكانية الفتح والمعاينة)
+// 3. تبويب إدارة الاختبارات
 // ==========================================
 class _TeacherQuizzesTab extends StatelessWidget {
   final AppUser user;
@@ -615,7 +626,6 @@ class _TeacherQuizzesTab extends StatelessWidget {
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                 child: ListTile(
                   onTap: () {
-                    // فتح ومعاينة الاختبار بالكامل للمعلم
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -661,7 +671,7 @@ class _TeacherQuizzesTab extends StatelessWidget {
 }
 
 // ==========================================
-// 4. تبويب المحتوى المضاف (مع إمكانية الفتح والمعاينة)
+// 4. تبويب المحتوى المضاف
 // ==========================================
 class _UploadedContentTab extends StatelessWidget {
   final AppUser user;
@@ -800,10 +810,17 @@ class _TeacherProfileTab extends StatelessWidget {
               stream: FirebaseFirestore.instance
                   .collection('users')
                   .where('linkedTeacherUid', isEqualTo: user.uid)
-                  .where('status', isEqualTo: 'pending')
                   .snapshots(),
               builder: (context, pendingSnap) {
-                final pendingCount = pendingSnap.data?.docs.length ?? 0;
+                int pendingCount = 0;
+                if (pendingSnap.hasData) {
+                  final docs = pendingSnap.data!.docs;
+                  pendingCount = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return data['status'] == 'pending';
+                  }).length;
+                }
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -886,7 +903,7 @@ class _TeacherProfileTab extends StatelessWidget {
 }
 
 // ==========================================
-// 6. نافذة رفع المحتوى مع زر اختيار الملف من الهاتف
+// 6. نافذة رفع المحتوى
 // ==========================================
 class _AddContentBottomSheet extends StatefulWidget {
   final String teacherUid;
@@ -921,7 +938,6 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
     'واجب منزلي',
   ];
 
-  // دالة اختيار ملف من الموبايل ورفعه تلقائياً
   Future<void> _pickAndUploadFileFromPhone() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -941,7 +957,6 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
           }
         });
 
-        // رفع الملف لـ Cloudinary مجاناً
         final url = Uri.parse('https://api.cloudinary.com/v1_1/demo/auto/upload');
         var request = http.MultipartRequest('POST', url);
         request.fields['upload_preset'] = 'docs_upload_example';
@@ -960,20 +975,19 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم تمييز ورفع الملف بنجاح! 🎉'), backgroundColor: Colors.green),
+              const SnackBar(content: Text('تم رفع الملف بنجاح! 🎉'), backgroundColor: Colors.green),
             );
           }
         } else {
-          // إذا فشل سيرفر الرفع المؤقت، نترك للمستخدم إدخال الرابط يدوياً
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('تم اختيار الملف: $fileName. يرجى التأكد من الرابط.')),
+              SnackBar(content: Text('تم اختيار الملف: $fileName')),
             );
           }
         }
       }
     } catch (e) {
-      debugPrint('خطأ أثناء اختيار الملف: $e');
+      debugPrint('خطأ اختيار الملف: $e');
     } finally {
       if (mounted) setState(() => _isUploadingFile = false);
     }
@@ -1036,7 +1050,6 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
             ),
             const SizedBox(height: 12),
 
-            // زر اختيار ملف من الموبايل
             OutlinedButton.icon(
               onPressed: _isUploadingFile ? null : _pickAndUploadFileFromPhone,
               icon: _isUploadingFile
@@ -1078,7 +1091,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
             const SizedBox(height: 12),
             const Text('رابط الملف / الفيديو', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            TextField(controller: _urlController, decoration: _inputDecoration(hint: 'يتعبأ تلقائياً عند سحب ملف أو ضع رابطك')),
+            TextField(controller: _urlController, decoration: _inputDecoration(hint: 'ضع رابط التحميل هنا')),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
