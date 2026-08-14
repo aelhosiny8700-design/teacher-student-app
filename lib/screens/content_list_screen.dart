@@ -45,147 +45,237 @@ class _ContentListScreenState extends State<ContentListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FC),
-      appBar: AppBar(
-        title: Column(
-          children: [
-            const Text('المحتوى الدراسي', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(widget.user.stage ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          // أزرار فلترة أنواع المحتوى
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _types.map((type) {
-                  final isSelected = _selectedTypeFilter == type;
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: ChoiceChip(
-                      label: Text(
-                        type,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : const Color(0xFF1E293B),
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                      ),
-                      selected: isSelected,
-                      selectedColor: const Color(0xFF0062E6),
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      onSelected: (selected) {
-                        if (selected) setState(() => _selectedTypeFilter = type);
-                      },
-                    ),
-                  );
-                }).toList(),
+    // جلب أحدث بيانات الطالب لحظياً من Firestore
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
+      builder: (context, userSnapshot) {
+        String? teacherUid = widget.user.linkedTeacherUid;
+        String? studentStage = widget.user.stage;
+        String? status = widget.user.status;
+
+        if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
+          final rawUser = userSnapshot.data!.data();
+          if (rawUser is Map) {
+            teacherUid = rawUser['linkedTeacherUid']?.toString() ?? teacherUid;
+            studentStage = rawUser['stage']?.toString() ?? studentStage;
+            status = rawUser['status']?.toString() ?? status;
+          }
+        }
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF4F7FC),
+          appBar: AppBar(
+            title: Column(
+              children: [
+                const Text('المحتوى الدراسي 📚', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(studentStage ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+              ],
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+          ),
+          body: _buildBody(teacherUid, studentStage, status),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(String? teacherUid, String? studentStage, String? status) {
+    if (teacherUid == null || teacherUid.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.vpn_key_outlined, size: 64, color: Colors.orange.shade400),
+              const SizedBox(height: 16),
+              const Text(
+                'لم تنضم إلى معلم بعد!',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'يرجى إدخال كود المعلم من الشاشة الرئيسية لتتمكن من رؤية المذكرات والفيديوهات الخاصة بصفك.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (status == 'pending') {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.hourglass_top_rounded, size: 64, color: Colors.amber.shade600),
+              const SizedBox(height: 16),
+              const Text(
+                'طلب الانضمام قيد الانتظار ⏳',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'تم إرسال طلبك للمعلم، وبمجرد الموافقة عليه سيظهر كل المحتوى الدراسي هنا تلقائياً.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // شريط فلاتر نوع المحتوى
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _types.map((type) {
+                final isSelected = _selectedTypeFilter == type;
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: ChoiceChip(
+                    label: Text(
+                      type,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF0062E6),
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    onSelected: (selected) {
+                      if (selected) setState(() => _selectedTypeFilter = type);
+                    },
+                  ),
+                );
+              }).toList(),
             ),
           ),
-          const SizedBox(height: 12),
+        ),
+        const SizedBox(height: 12),
 
-          // جلب المحتوى الخاص بمعلم الطالب ومرحلته الدراسية
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('contents')
-                  .where('teacherUid', isEqualTo: widget.user.linkedTeacherUid)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF0062E6)));
-                }
+        // جلب المحتوى الخاص بالمعلم
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('contents')
+                .where('teacherUid', isEqualTo: teacherUid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF0062E6)));
+              }
 
-                final docs = snapshot.data?.docs ?? [];
+              final docs = snapshot.data?.docs ?? [];
 
-                // تصفية المحتوى بدقة: مرحلة الطالب + نوع المحتوى المختار
-                final filteredDocs = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final stageMatch = data['stage'] == widget.user.stage;
-                  final typeMatch = _selectedTypeFilter == 'الكل' || data['type'] == _selectedTypeFilter;
-                  return stageMatch && typeMatch;
-                }).toList();
+              // تصفية المحتوى حسب مرحلة الطالب ونوع المحتوى
+              final filteredDocs = docs.where((doc) {
+                final raw = doc.data();
+                if (raw is! Map) return false;
+                final data = raw.cast<String, dynamic>();
 
-                if (filteredDocs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.folder_open_outlined, size: 64, color: Colors.grey.shade400),
-                        const SizedBox(height: 12),
-                        Text(
-                          'لا يوجد محتوى مضاف لـ (${widget.user.stage ?? 'مرحلتك'}) حالياً',
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                final contentStage = data['stage']?.toString();
+                final contentType = data['type']?.toString();
+
+                final bool stageMatch = (studentStage == null || studentStage.isEmpty) || (contentStage == studentStage);
+                final bool typeMatch = _selectedTypeFilter == 'الكل' || (contentType == _selectedTypeFilter);
+
+                return stageMatch && typeMatch;
+              }).toList();
+
+              if (filteredDocs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.folder_open_outlined, size: 64, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      Text(
+                        'لا يوجد محتوى مضاف لـ (${studentStage ?? 'صفك'}) حالياً',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: filteredDocs.length,
+                itemBuilder: (context, index) {
+                  final doc = filteredDocs[index];
+                  final raw = doc.data();
+                  final Map<String, dynamic> data = (raw is Map) ? raw.cast<String, dynamic>() : {};
+                  final title = data['title']?.toString() ?? 'محتوى دراسي';
+                  final description = data['description']?.toString() ?? '';
+                  final type = data['type']?.toString() ?? 'ملف';
+                  final fileUrl = data['fileUrl']?.toString() ?? '';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
+                    child: ListTile(
+                      onTap: () => _openUrl(fileUrl),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _getContentTypeColor(type).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(_getContentTypeIcon(type), color: _getContentTypeColor(type), size: 24),
+                      ),
+                      title: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                      ),
+                      subtitle: Text(
+                        description.isNotEmpty ? '$description • $type' : type,
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                      trailing: ElevatedButton.icon(
+                        onPressed: () => _openUrl(fileUrl),
+                        icon: const Icon(Icons.open_in_new, size: 16, color: Colors.white),
+                        label: const Text('فتح', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0062E6),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                   );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: filteredDocs.length,
-                  itemBuilder: (context, index) {
-                    final data = filteredDocs[index].data() as Map<String, dynamic>;
-                    final title = data['title'] ?? 'محتوى دراسي';
-                    final description = data['description'] ?? '';
-                    final type = data['type'] ?? 'ملف';
-                    final fileUrl = data['fileUrl'] ?? '';
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _getContentTypeColor(type).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(_getContentTypeIcon(type), color: _getContentTypeColor(type), size: 24),
-                        ),
-                        title: Text(
-                          title,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
-                        ),
-                        subtitle: Text(
-                          description.isNotEmpty ? '$description • $type' : type,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.file_download_outlined, color: Color(0xFF0062E6)),
-                          onPressed: () => _openUrl(fileUrl),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                },
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
