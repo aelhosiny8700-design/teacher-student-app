@@ -45,7 +45,8 @@ class _StudentHomeState extends State<StudentHome> {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
         
         bool isTeacherMissing = data['linkedTeacherUid'] == null || data['linkedTeacherUid'].toString().isEmpty;
-        bool isGradeMissing = data['grade'] == null || data['grade'].toString().isEmpty;
+        bool isGradeMissing = (data['grade'] == null || data['grade'].toString().isEmpty) &&
+                              (data['stage'] == null || data['stage'].toString().isEmpty);
 
         // إذا كان أحدهما ناقصاً، نعرض نافذة الإكمال الإجبارية
         if (isTeacherMissing || isGradeMissing) {
@@ -174,10 +175,11 @@ class _StudentHomeState extends State<StudentHome> {
                     if (teacherQuery.docs.isNotEmpty) {
                       String teacherUid = teacherQuery.docs.first.id;
 
-                      // تحديث كود المعلم والمرحلة الدراسية في قاعدة البيانات
+                      // تحديث كود المعلم والمرحلة الدراسية في قاعدة البيانات (في الحقلين لضمان التوافق مع المعلم)
                       await FirebaseFirestore.instance.collection('users').doc(studentUid).update({
                         'linkedTeacherUid': teacherUid,
                         'grade': selectedGrade,
+                        'stage': selectedGrade,
                         'status': 'pending',
                       });
 
