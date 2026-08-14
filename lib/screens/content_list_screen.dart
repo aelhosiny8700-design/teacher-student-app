@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/user_model.dart';
 
 class ContentListScreen extends StatefulWidget {
@@ -12,16 +13,46 @@ class ContentListScreen extends StatefulWidget {
 }
 
 class _ContentListScreenState extends State<ContentListScreen> {
-  String _selectedFilter = 'الكل';
+  String _selectedTypeFilter = 'الكل';
+
+  final List<String> _types = [
+    'الكل',
+    'مذكرة / ملف PDF',
+    'فيديو شرح',
+    'ملخص دراسي',
+    'واجب منزلي',
+  ];
+
+  void _openUrl(String urlString) async {
+    if (urlString.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('رابط المحتوى غير متوفر')),
+      );
+      return;
+    }
+
+    final Uri url = Uri.parse(urlString.trim());
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح رابط الملف أو الفيديو')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(
-        title: const Text(
-          'المواد الدراسية',
-          style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold),
+        title: Column(
+          children: [
+            const Text('المحتوى الدراسي', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(widget.user.stage ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+          ],
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -29,21 +60,41 @@ class _ContentListScreenState extends State<ContentListScreen> {
       ),
       body: Column(
         children: [
+          // أزرار فلترة أنواع المحتوى
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildFilterChip('الكل'),
-                const SizedBox(width: 8),
-                _buildFilterChip('أساسي'),
-                const SizedBox(width: 8),
-                _buildFilterChip('ثانوي'),
-              ],
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _types.map((type) {
+                  final isSelected = _selectedTypeFilter == type;
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: ChoiceChip(
+                      label: Text(
+                        type,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
+                        ),
+                      ),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFF0062E6),
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      onSelected: (selected) {
+                        if (selected) setState(() => _selectedTypeFilter = type);
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ),
           const SizedBox(height: 12),
+
+          // جلب المحتوى الخاص بمعلم الطالب ومرحلته الدراسية
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -52,23 +103,29 @@ class _ContentListScreenState extends State<ContentListScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF0062E6)),
-                  );
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF0062E6)));
                 }
 
                 final docs = snapshot.data?.docs ?? [];
 
-                if (docs.isEmpty) {
+                // تصفية المحتوى بدقة: مرحلة الطالب + نوع المحتوى المختار
+                final filteredDocs = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final stageMatch = data['stage'] == widget.user.stage;
+                  final typeMatch = _selectedTypeFilter == 'الكل' || data['type'] == _selectedTypeFilter;
+                  return stageMatch && typeMatch;
+                }).toList();
+
+                if (filteredDocs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.folder_open, size: 64, color: Colors.grey.shade400),
+                        Icon(Icons.folder_open_outlined, size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
-                        const Text(
-                          'لا يوجد محتوى دراسي متاح حالياً',
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                        Text(
+                          'لا يوجد محتوى مضاف لـ (${widget.user.stage ?? 'مرحلتك'}) حالياً',
+                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                         ),
                       ],
                     ),
@@ -77,26 +134,50 @@ class _ContentListScreenState extends State<ContentListScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: docs.length,
+                  itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    return _SubjectCard(
-                      title: data['title'] ?? 'مادة دراسية',
-                      subtitle: data['description'] ?? 'عرض دروس ووحدات المادة',
-                      lessonsCount: data['lessonsCount'] ?? 12,
-                      color: _getSubjectColor(index),
-                      icon: _getSubjectIcon(data['title'] ?? ''),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => LessonDetailScreen(
-                              title: data['title'] ?? 'تفاصيل الدرس',
-                              contentUrl: data['fileUrl'] ?? '',
-                            ),
+                    final data = filteredDocs[index].data() as Map<String, dynamic>;
+                    final title = data['title'] ?? 'محتوى دراسي';
+                    final description = data['description'] ?? '';
+                    final type = data['type'] ?? 'ملف';
+                    final fileUrl = data['fileUrl'] ?? '';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           ),
-                        );
-                      },
+                        ],
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _getContentTypeColor(type).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(_getContentTypeIcon(type), color: _getContentTypeColor(type), size: 24),
+                        ),
+                        title: Text(
+                          title,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                        ),
+                        subtitle: Text(
+                          description.isNotEmpty ? '$description • $type' : type,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.file_download_outlined, color: Color(0xFF0062E6)),
+                          onPressed: () => _openUrl(fileUrl),
+                        ),
+                      ),
                     );
                   },
                 );
@@ -108,176 +189,17 @@ class _ContentListScreenState extends State<ContentListScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    final isSelected = _selectedFilter == label;
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF1E293B),
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      selected: isSelected,
-      selectedColor: const Color(0xFF0062E6),
-      backgroundColor: const Color(0xFFF1F5F9),
-      onSelected: (selected) {
-        if (selected) setState(() => _selectedFilter = label);
-      },
-    );
+  Color _getContentTypeColor(String type) {
+    if (type.contains('فيديو')) return const Color(0xFFDC2626);
+    if (type.contains('مذكرة') || type.contains('PDF')) return const Color(0xFF2563EB);
+    if (type.contains('واجب')) return const Color(0xFFD97706);
+    return const Color(0xFF059669);
   }
 
-  Color _getSubjectColor(int index) {
-    final colors = [
-      const Color(0xFF2563EB),
-      const Color(0xFF059669),
-      const Color(0xFFD97706),
-      const Color(0xFF7C3AED),
-      const Color(0xFFDC2626),
-    ];
-    return colors[index % colors.length];
-  }
-
-  IconData _getSubjectIcon(String title) {
-    if (title.contains('رياضيات')) return Icons.calculate;
-    if (title.contains('علوم') || title.contains('فيزياء')) return Icons.science;
-    if (title.contains('عربي')) return Icons.menu_book;
-    if (title.contains('إنجليزي')) return Icons.language;
-    return Icons.school;
-  }
-}
-
-class _SubjectCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final int lessonsCount;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _SubjectCard({
-    required this.title,
-    required this.subtitle,
-    required this.lessonsCount,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 26),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        subtitle: Text(
-          '$subtitle • $lessonsCount درس',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF94A3B8)),
-      ),
-    );
-  }
-}
-
-class LessonDetailScreen extends StatelessWidget {
-  final String title;
-  final String contentUrl;
-
-  const LessonDetailScreen({
-    super.key,
-    required this.title,
-    required this.contentUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F7FC),
-        appBar: AppBar(
-          title: Text(title, style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold)),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          foregroundColor: const Color(0xFF1E293B),
-          bottom: const TabBar(
-            labelColor: Color(0xFF0062E6),
-            unselectedLabelColor: Color(0xFF64748B),
-            indicatorColor: Color(0xFF0062E6),
-            indicatorWeight: 3,
-            tabs: [
-              Tab(text: 'الشرح'),
-              Tab(text: 'أمثلة'),
-              Tab(text: 'اختبر نفسك'),
-              Tab(text: 'ملاحظات'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildExplanationTab(),
-            const Center(child: Text('الأمثلة المحلولة ستظهر هنا')),
-            const Center(child: Text('أسئلة سريعة على الدرس')),
-            const Center(child: Text('الملاحظات والملخصات')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExplanationTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'المحتوى التعليمي الخاص بالدرس متاح ومحمل عبر السحابة. يمكنك القراءة والمتابعة للوصول إلى أعلى درجات الفهم.',
-              style: TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF475569)),
-            ),
-          ],
-        ),
-      ),
-    );
+  IconData _getContentTypeIcon(String type) {
+    if (type.contains('فيديو')) return Icons.play_circle_fill_rounded;
+    if (type.contains('مذكرة') || type.contains('PDF')) return Icons.picture_as_pdf_rounded;
+    if (type.contains('واجب')) return Icons.assignment_rounded;
+    return Icons.menu_book_rounded;
   }
 }
