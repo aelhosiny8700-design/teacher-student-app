@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'quiz_create_screen.dart';
+import 'quiz_preview_screen.dart';
 import 'quiz_results_screen.dart';
 import 'pending_approvals_screen.dart';
 import 'chat_hub_screen.dart';
@@ -127,18 +131,43 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم توليد كود المعلم الجديد: $newCode 🎉'), backgroundColor: Colors.green),
+          SnackBar(content: Text('تم تغيير كود المعلم للجديد: $newCode 🎉'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ أثناء توليد الكود: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('خطأ أثناء تجديد الكود: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
       if (mounted) setState(() => _isGeneratingCode = false);
     }
+  }
+
+  void _confirmRegenerateCode() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('تجديد كود المعلم', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('هل تريد تغيير كودك الحالي وتوليد كود جديد؟ (استخدم هذا إذا اتسرب كودك القديم).'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: TeacherColors.primary),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _generateTeacherCode();
+            },
+            child: const Text('توليد كود جديد', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _copyCodeToClipboard(String code) {
@@ -206,27 +235,42 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       );
                     }
 
-                    return InkWell(
-                      onTap: () => _copyCodeToClipboard(currentCode),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.copy, color: Colors.white, size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              'كودك: $currentCode',
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => _copyCodeToClipboard(currentCode),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white.withOpacity(0.3)),
                             ),
-                          ],
+                            child: Row(
+                              children: [
+                                const Icon(Icons.copy, color: Colors.white, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'كودك: $currentCode',
+                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: _isGeneratingCode ? null : _confirmRegenerateCode,
+                          icon: const Icon(Icons.refresh, size: 16, color: TeacherColors.primary),
+                          label: const Text('تجديد الكود', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: TeacherColors.primary)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -252,7 +296,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                   crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.25,
                   children: [
                     _QuickTile(
-                      title: 'رفع محتوى',
+                      title: 'رفع محتوى من الموبايل',
                       icon: Icons.cloud_upload_rounded,
                       color: const Color(0xFF2563EB),
                       onTap: widget.onOpenUploadModal,
@@ -304,10 +348,10 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       },
                     ),
                     _QuickTile(
-                      title: 'المحتوى المضاف',
-                      icon: Icons.folder_copy_rounded,
+                      title: 'تجديد الكود (تسريب)',
+                      icon: Icons.published_with_changes_rounded,
                       color: const Color(0xFF0284C7),
-                      onTap: () => widget.onNavigateToTab(1),
+                      onTap: _confirmRegenerateCode,
                     ),
                   ],
                 ),
@@ -362,7 +406,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
 }
 
 // ==========================================
-// 2. شاشة إدارة الطلاب وحذفهم
+// 2. شاشة إدارة الطلاب وحذفهم ومراسلته
 // ==========================================
 class _TeacherStudentsScreen extends StatelessWidget {
   final AppUser user;
@@ -516,7 +560,7 @@ class _TeacherStudentsScreen extends StatelessWidget {
 }
 
 // ==========================================
-// 3. تبويب إدارة الاختبارات للمعلم
+// 3. تبويب إدارة الاختبارات (مع إمكانية الفتح والمعاينة)
 // ==========================================
 class _TeacherQuizzesTab extends StatelessWidget {
   final AppUser user;
@@ -570,14 +614,41 @@ class _TeacherQuizzesTab extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                 child: ListTile(
+                  onTap: () {
+                    // فتح ومعاينة الاختبار بالكامل للمعلم
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuizPreviewScreen(quizData: q, quizId: doc.id),
+                      ),
+                    );
+                  },
                   leading: const CircleAvatar(backgroundColor: Color(0xFFE0E7FF), child: Icon(Icons.quiz, color: TeacherColors.primary)),
                   title: Text(q['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${q['subject']} • ${q['stage']} • $questions أسئلة'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () async {
-                      await FirebaseFirestore.instance.collection('quizzes').doc(doc.id).delete();
-                    },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.visibility_outlined, color: TeacherColors.primary),
+                        tooltip: 'معاينة الاختبار',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => QuizPreviewScreen(quizData: q, quizId: doc.id),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: 'حذف',
+                        onPressed: () async {
+                          await FirebaseFirestore.instance.collection('quizzes').doc(doc.id).delete();
+                        },
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -590,13 +661,33 @@ class _TeacherQuizzesTab extends StatelessWidget {
 }
 
 // ==========================================
-// 4. تبويب المحتوى المضاف
+// 4. تبويب المحتوى المضاف (مع إمكانية الفتح والمعاينة)
 // ==========================================
 class _UploadedContentTab extends StatelessWidget {
   final AppUser user;
   final VoidCallback onOpenUploadModal;
 
   const _UploadedContentTab({required this.user, required this.onOpenUploadModal});
+
+  void _openContentUrl(BuildContext context, String urlString) async {
+    if (urlString.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('رابط الملف غير متوفر')),
+      );
+      return;
+    }
+
+    final Uri url = Uri.parse(urlString.trim());
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح رابط الملف أو الفيديو')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -638,16 +729,30 @@ class _UploadedContentTab extends StatelessWidget {
             itemCount: docs.length,
             itemBuilder: (context, i) {
               final d = docs[i].data() as Map<String, dynamic>;
+              final fileUrl = d['fileUrl'] ?? '';
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                 child: ListTile(
+                  onTap: () => _openContentUrl(context, fileUrl),
                   leading: const Icon(Icons.insert_drive_file, color: TeacherColors.primary),
                   title: Text(d['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${d['stage'] ?? ''} • ${d['type'] ?? ''}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () => FirebaseFirestore.instance.collection('contents').doc(docs[i].id).delete(),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.open_in_new, color: TeacherColors.primary),
+                        tooltip: 'فتح المحتوى',
+                        onPressed: () => _openContentUrl(context, fileUrl),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: 'حذف',
+                        onPressed: () => FirebaseFirestore.instance.collection('contents').doc(docs[i].id).delete(),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -660,7 +765,7 @@ class _UploadedContentTab extends StatelessWidget {
 }
 
 // ==========================================
-// 5. تبويب الملف الشخصي للمعلم
+// 5. تبويب المزيد والملف الشخصي
 // ==========================================
 class _TeacherProfileTab extends StatelessWidget {
   final AppUser user;
@@ -672,7 +777,7 @@ class _TeacherProfileTab extends StatelessWidget {
     return Scaffold(
       backgroundColor: TeacherColors.background,
       appBar: AppBar(
-        title: const Text('الملف الشخصي للمعلم', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold)),
+        title: const Text('المزيد والملف الشخصي', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -691,6 +796,44 @@ class _TeacherProfileTab extends StatelessWidget {
             Text(user.email, style: const TextStyle(fontSize: 13, color: TeacherColors.textMuted)),
             const SizedBox(height: 24),
 
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('linkedTeacherUid', isEqualTo: user.uid)
+                  .where('status', isEqualTo: 'pending')
+                  .snapshots(),
+              builder: (context, pendingSnap) {
+                final pendingCount = pendingSnap.data?.docs.length ?? 0;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                  child: ListTile(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => PendingApprovalsScreen(teacher: user)),
+                      );
+                    },
+                    leading: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFFDC2626)),
+                    title: const Text('طلبات الانضمام للطلاب', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold, fontSize: 14)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (pendingCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                            child: Text('$pendingCount جديد', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward_ios, size: 16, color: TeacherColors.textMuted),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+
             _buildProfileTile(
               Icons.vpn_key,
               user.teacherCode != null ? 'كودك: ${user.teacherCode}' : 'كود المعلم غير مفعل',
@@ -701,6 +844,16 @@ class _TeacherProfileTab extends StatelessWidget {
                     const SnackBar(content: Text('تم نسخ الكود للحافظة!')),
                   );
                 }
+              },
+            ),
+            _buildProfileTile(
+              Icons.emoji_events_rounded,
+              'رصد نتائج الطلاب',
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => QuizResultsScreen(user: user)),
+                );
               },
             ),
             _buildProfileTile(Icons.info_outline, 'معلومات الحساب والتخصص', () {}),
@@ -733,7 +886,7 @@ class _TeacherProfileTab extends StatelessWidget {
 }
 
 // ==========================================
-// 6. نافذة رفع المحتوى
+// 6. نافذة رفع المحتوى مع زر اختيار الملف من الهاتف
 // ==========================================
 class _AddContentBottomSheet extends StatefulWidget {
   final String teacherUid;
@@ -751,6 +904,8 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
   String? _selectedStage = 'الصف الأول الإعدادي';
   String? _selectedType = 'مذكرة / ملف PDF';
   bool _isLoading = false;
+  bool _isUploadingFile = false;
+  String? _pickedFileName;
 
   final List<String> _stages = [
     'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي',
@@ -765,6 +920,64 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
     'ملخص دراسي',
     'واجب منزلي',
   ];
+
+  // دالة اختيار ملف من الموبايل ورفعه تلقائياً
+  Future<void> _pickAndUploadFileFromPhone() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'mp4', 'png', 'jpg', 'jpeg'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final filePath = result.files.single.path!;
+        final fileName = result.files.single.name;
+
+        setState(() {
+          _isUploadingFile = true;
+          _pickedFileName = fileName;
+          if (_titleController.text.isEmpty) {
+            _titleController.text = fileName.split('.').first;
+          }
+        });
+
+        // رفع الملف لـ Cloudinary مجاناً
+        final url = Uri.parse('https://api.cloudinary.com/v1_1/demo/auto/upload');
+        var request = http.MultipartRequest('POST', url);
+        request.fields['upload_preset'] = 'docs_upload_example';
+        request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+        var streamedResponse = await request.send();
+        var response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode == 200) {
+          var responseData = jsonDecode(response.body);
+          final String uploadedUrl = responseData['secure_url'];
+
+          setState(() {
+            _urlController.text = uploadedUrl;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('تم تمييز ورفع الملف بنجاح! 🎉'), backgroundColor: Colors.green),
+            );
+          }
+        } else {
+          // إذا فشل سيرفر الرفع المؤقت، نترك للمستخدم إدخال الرابط يدوياً
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('تم اختيار الملف: $fileName. يرجى التأكد من الرابط.')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('خطأ أثناء اختيار الملف: $e');
+    } finally {
+      if (mounted) setState(() => _isUploadingFile = false);
+    }
+  }
 
   Future<void> _uploadContent() async {
     final title = _titleController.text.trim();
@@ -791,13 +1004,13 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم رفع المحتوى بنجاح 🎉'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('تم حفظ ونشر المحتوى بنجاح 🎉'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء الرفع: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('حدث خطأ أثناء الحفظ: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -822,6 +1035,25 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
               ],
             ),
             const SizedBox(height: 12),
+
+            // زر اختيار ملف من الموبايل
+            OutlinedButton.icon(
+              onPressed: _isUploadingFile ? null : _pickAndUploadFileFromPhone,
+              icon: _isUploadingFile
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.file_upload_outlined, color: TeacherColors.primary),
+              label: Text(
+                _pickedFileName != null ? 'تم اختيار: $_pickedFileName' : 'اختيار ملف من ذاكرة الهاتف 📁',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary),
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                side: const BorderSide(color: TeacherColors.primary, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 14),
+
             const Text('الصف الدراسي', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
@@ -846,20 +1078,20 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
             const SizedBox(height: 12),
             const Text('رابط الملف / الفيديو', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            TextField(controller: _urlController, decoration: _inputDecoration(hint: 'ضع رابط التحميل هنا')),
+            TextField(controller: _urlController, decoration: _inputDecoration(hint: 'يتعبأ تلقائياً عند سحب ملف أو ضع رابطك')),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _uploadContent,
+                onPressed: (_isLoading || _isUploadingFile) ? null : _uploadContent,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: TeacherColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('رفع وحفظ المحتوى', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    : const Text('حفظ ونشر المحتوى', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
             const SizedBox(height: 20),
