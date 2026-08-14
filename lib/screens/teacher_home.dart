@@ -73,8 +73,12 @@ class _TeacherHomeState extends State<TeacherHome> {
           .doc(_currentUser.uid)
           .update({'teacherCode': newCode});
 
+      final updatedUser = await _authService.getUserData(_currentUser.uid);
+
       setState(() {
-        _currentUser = _currentUser.copyWith(teacherCode: newCode);
+        if (updatedUser != null) {
+          _currentUser = updatedUser;
+        }
         _isLoadingCode = false;
       });
 
@@ -173,7 +177,6 @@ class _TeacherHomeState extends State<TeacherHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // كارت الترحيب
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -229,7 +232,6 @@ class _TeacherHomeState extends State<TeacherHome> {
                 const SizedBox(height: 16),
                 const Divider(color: Colors.white24, height: 1),
                 const SizedBox(height: 14),
-                // قسم كود المعلم
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -296,7 +298,6 @@ class _TeacherHomeState extends State<TeacherHome> {
           ),
           const SizedBox(height: 14),
 
-          // شبكة الإجراءات السريعة
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -342,7 +343,7 @@ class _TeacherHomeState extends State<TeacherHome> {
                 color: const Color(0xFFF59E0B),
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => PendingApprovalsScreen(user: _currentUser)),
+                  MaterialPageRoute(builder: (_) => PendingApprovalsScreen(teacher: _currentUser)),
                 ),
               ),
               _buildActionCard(
