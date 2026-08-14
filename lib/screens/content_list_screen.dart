@@ -173,7 +173,7 @@ String? studentGrade = widget.user.stage;
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('contents')
-                .where('teacherUid', isEqualTo: teacherUid)
+                .where('teacherId', isEqualTo: teacherUid)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
