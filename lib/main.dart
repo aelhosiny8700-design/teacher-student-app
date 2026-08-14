@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'models/user_model.dart';
 import 'services/auth_service.dart';
@@ -24,9 +25,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),
       theme: ThemeData(
-        primaryColor: const Color(0xFF2E5AAC),
-        fontFamily: 'Cairo',
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E5AAC)),
+        primaryColor: const Color(0xFF0062E6),
+        scaffoldBackgroundColor: const Color(0xFFF4F7FC),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0062E6)),
+        textTheme: GoogleFonts.tajawalTextTheme(Theme.of(context).textTheme),
       ),
       builder: (context, child) {
         return Directionality(
@@ -39,7 +41,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// يحدد هل نعرض شاشة تسجيل الدخول أو الشاشة الرئيسية حسب حالة الدخول
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -51,24 +52,26 @@ class AuthGate extends StatelessWidget {
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: Color(0xFF0062E6))),
+          );
         }
 
         if (!snapshot.hasData) {
           return const LoginScreen();
         }
 
-        // المستخدم داخل حسابه - نجيب بياناته (اسمه، دوره)
         return FutureBuilder<AppUser?>(
           future: authService.getUserData(snapshot.data!.uid),
           builder: (context, userSnapshot) {
             if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: Color(0xFF0062E6))),
+              );
             }
 
             final appUser = userSnapshot.data;
             if (appUser == null) {
-              // بيانات ناقصة - نرجعه لتسجيل الدخول
               return const LoginScreen();
             }
 
