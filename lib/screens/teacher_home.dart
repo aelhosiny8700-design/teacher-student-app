@@ -182,7 +182,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // الهيدر علوي
+          // الهيدر
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -392,21 +392,27 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                 final contentCount = (contentSnap.hasData && contentSnap.data != null) ? contentSnap.data!.docs.length : 0;
                 return Row(
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => _TeacherStudentsScreen(user: widget.user)));
-                      },
-                      child: _StatCard(title: 'الطلاب', count: '$studentsCount', icon: Icons.people, color: const Color(0xFF2563EB)),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => _TeacherStudentsScreen(user: widget.user)));
+                        },
+                        child: _StatCard(title: 'الطلاب', count: '$studentsCount', icon: Icons.people, color: const Color(0xFF2563EB)),
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => onNavigateToTab(1),
-                      child: _StatCard(title: 'المحتوى', count: '$contentCount', icon: Icons.folder, color: const Color(0xFFD97706)),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onNavigateToTab(1),
+                        child: _StatCard(title: 'المحتوى', count: '$contentCount', icon: Icons.folder, color: const Color(0xFFD97706)),
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => onNavigateToTab(2),
-                      child: _StatCard(title: 'الاختبارات', count: '$quizCount', icon: Icons.assignment, color: const Color(0xFF7C3AED)),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onNavigateToTab(2),
+                        child: _StatCard(title: 'الاختبارات', count: '$quizCount', icon: Icons.assignment, color: const Color(0xFF7C3AED)),
+                      ),
                     ),
                   ],
                 );
@@ -933,6 +939,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
   bool _isLoading = false;
   bool _isUploadingFile = false;
   String? _pickedFileName;
+  String _uploadStatusText = '';
 
   final List<String> _stages = [
     'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي',
@@ -961,43 +968,67 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
 
         setState(() {
           _isUploadingFile = true;
+          _uploadStatusText = 'جاري رفع الملف للسيرفر... برجاء الانتظار ⏳';
           _pickedFileName = fileName;
-          if (_titleController.text.isEmpty) {
+          if (_titleController.text.trim().isEmpty) {
             _titleController.text = fileName.split('.').first;
           }
         });
 
-        final url = Uri.parse('https://api.cloudinary.com/v1_1/demo/auto/upload');
-        var request = http.MultipartRequest('POST', url);
-        request.fields['upload_preset'] = 'docs_upload_example';
-        request.files.add(await http.MultipartFile.fromPath('file', filePath));
+        String? uploadedUrl;
 
-        var streamedResponse = await request.send();
-        var response = await http.Response.fromStream(streamedResponse);
+        try {
+          var request = http.MultipartRequest('POST', Uri.parse('https://catbox.moe/user/api.php'));
+          request.fields['reqtype'] = 'fileupload';
+          request.files.add(await http.MultipartFile.fromPath('fileToUpload', filePath));
+          var streamedResponse = await request.send().timeout(const Duration(seconds: 40));
+          var response = await http.Response.fromStream(streamedResponse);
+          if (response.statusCode == 200 && response.body.trim().startsWith('http')) {
+            uploadedUrl = response.body.trim();
+          }
+        } catch (e) {
+          debugPrint('Catbox upload failed: $e');
+        }
 
-        if (response.statusCode == 200) {
-          var responseData = jsonDecode(response.body);
-          final String uploadedUrl = responseData['secure_url'];
+        if (uploadedUrl == null) {
+          try {
+            var request = http.MultipartRequest('POST', Uri.parse('https://tmpfiles.org/api/v1/upload'));
+            request.files.add(await http.MultipartFile.fromPath('file', filePath));
+            var streamedResponse = await request.send().timeout(const Duration(seconds: 40));
+            var response = await http.Response.fromStream(streamedResponse);
+            if (response.statusCode == 200) {
+              var json = jsonDecode(response.body);
+              String rawUrl = json['data']['url'];
+              uploadedUrl = rawUrl.replaceFirst('tmpfiles.org/', 'tmpfiles.org/dl/');
+            }
+          } catch (e) {
+            debugPrint('TmpFiles upload failed: $e');
+          }
+        }
 
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
           setState(() {
-            _urlController.text = uploadedUrl;
+            _urlController.text = uploadedUrl!;
+            _uploadStatusText = 'تم رفع الملف بنجاح! جاهز للحفظ ✅';
           });
-
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('تم رفع الملف بنجاح 🎉'), backgroundColor: Colors.green),
             );
           }
         } else {
+          setState(() {
+            _uploadStatusText = 'تعذر الرفع التلقائي، يمكنك وضع رابط مباشر بالأسفل.';
+          });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('تم اختيار الملف: $fileName')),
+              const SnackBar(content: Text('تعذر الرفع التلقائي، يرجى إدخال الرابط يدوياً'), backgroundColor: Colors.red),
             );
           }
         }
       }
     } catch (e) {
-      debugPrint('خطأ اختيار الملف: $e');
+      debugPrint('خطأ أثناء اختيار الملف: $e');
     } finally {
       if (mounted) setState(() => _isUploadingFile = false);
     }
@@ -1102,7 +1133,9 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.file_upload_outlined, color: TeacherColors.primary),
                 label: Text(
-                  _pickedFileName != null ? 'تم اختيار: $_pickedFileName' : 'اضغط لاختيار الملف من الهاتف 📁',
+                  _isUploadingFile
+                      ? 'جاري الرفع إلى السيرفر...'
+                      : (_pickedFileName != null ? 'تم اختيار: $_pickedFileName' : 'اضغط لاختيار الملف من الهاتف 📁'),
                   style: const TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary),
                 ),
                 style: OutlinedButton.styleFrom(
@@ -1111,6 +1144,17 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
+              if (_uploadStatusText.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _uploadStatusText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _uploadStatusText.contains('بنجاح') ? Colors.green : Colors.blueGrey,
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
             ],
 
@@ -1182,7 +1226,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
 }
 
 // ==========================================
-// 7. المكونات المساعدة
+// 7. المكونات المساعدة (تم إصلاح التنسيق لتفادي الشاشة الرصاصي)
 // ==========================================
 class _StatCard extends StatelessWidget {
   final String title, count;
@@ -1193,28 +1237,26 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3)),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 6),
-            Text(count, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
-            Text(title, style: const TextStyle(fontSize: 11, color: TeacherColors.textMuted)),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 6),
+          Text(count, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
+          Text(title, style: const TextStyle(fontSize: 11, color: TeacherColors.textMuted)),
+        ],
       ),
     );
   }
