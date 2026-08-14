@@ -5,7 +5,14 @@ import '../services/auth_service.dart';
 import 'content_list_screen.dart';
 import 'quiz_list_screen.dart';
 import 'chat_hub_screen.dart';
-import 'teacher_home.dart' show AppColors;
+
+class NewUiColors {
+  static const primary = Color(0xFF0062E6);
+  static const primaryDark = Color(0xFF004CB3);
+  static const background = Color(0xFFF4F7FC);
+  static const textDark = Color(0xFF1E293B);
+  static const textMuted = Color(0xFF64748B);
+}
 
 class StudentHome extends StatefulWidget {
   final AppUser user;
@@ -20,196 +27,210 @@ class StudentHome extends StatefulWidget {
 }
 
 class _StudentHomeState extends State<StudentHome> {
-  int _index = 0;
+  int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      _StudentDashboardTab(user: widget.user),
+      _HomeDashboardTab(
+        user: widget.user,
+        onNavigateToTab: (index) {
+          setState(() => _currentIndex = index);
+        },
+      ),
       ContentListScreen(user: widget.user),
       QuizListScreen(user: widget.user),
       ChatHubScreen(user: widget.user),
+      _ProfileTab(user: widget.user),
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'أهلاً ${widget.user.name}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Text(
-              'لوحة تحكم الطالب',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-              ),
+      backgroundColor: NewUiColors.background,
+      body: pages[_currentIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
-            onPressed: () async {
-              await AuthService().signOut();
-            },
-          ),
-        ],
-      ),
-      body: pages[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) {
-          setState(() => _index = i);
-        },
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.primary.withOpacity(0.12),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(
-              Icons.dashboard,
-              color: AppColors.primary,
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: NewUiColors.primary,
+          unselectedItemColor: NewUiColors.textMuted,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'الرئيسية',
             ),
-            label: 'الرئيسية',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(
-              Icons.folder,
-              color: AppColors.primary,
+            BottomNavigationBarItem(
+              icon: Icon(Icons.menu_book_outlined),
+              activeIcon: Icon(Icons.menu_book),
+              label: 'المواد',
             ),
-            label: 'المحتوى',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.quiz_outlined),
-            selectedIcon: Icon(
-              Icons.quiz,
-              color: AppColors.primary,
+            BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_outlined),
+              activeIcon: Icon(Icons.assignment),
+              label: 'الاختبارات',
             ),
-            label: 'الاختبارات',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(
-              Icons.chat_bubble,
-              color: AppColors.primary,
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble_outline),
+              activeIcon: Icon(Icons.chat_bubble),
+              label: 'الرسائل',
             ),
-            label: 'الرسائل',
-          ),
-        ],
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'المزيد',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StudentDashboardTab extends StatelessWidget {
+class _HomeDashboardTab extends StatelessWidget {
   final AppUser user;
+  final Function(int) onNavigateToTab;
 
-  const _StudentDashboardTab({
+  const _HomeDashboardTab({
     required this.user,
+    required this.onNavigateToTab,
   });
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppColors.primary,
+      color: NewUiColors.primary,
       onRefresh: () async {},
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        children: [
-          _WelcomeBanner(name: user.name),
-          const SizedBox(height: 20),
-          _ProgressRow(uid: user.uid),
-          const SizedBox(height: 24),
-          const _SectionTitle(title: 'الوصول السريع'),
-          const SizedBox(height: 12),
-          _QuickActionsGrid(user: user),
-          const SizedBox(height: 24),
-          const _SectionTitle(title: 'آخر نتائجك'),
-          const SizedBox(height: 12),
-          _RecentResultsList(uid: user.uid),
-        ],
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            _HeaderSection(user: user),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _QuickAccessGrid(
+                    user: user,
+                    onNavigateToTab: onNavigateToTab,
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'التقدم في المواد',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: NewUiColors.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _SubjectProgressCard(uid: user.uid),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'آخر النتائج',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: NewUiColors.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _RecentResultsList(uid: user.uid),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _WelcomeBanner extends StatelessWidget {
-  final String name;
+class _HeaderSection extends StatelessWidget {
+  final AppUser user;
 
-  const _WelcomeBanner({
-    required this.name,
-  });
+  const _HeaderSection({required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primaryDark,
-          ],
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [NewUiColors.primary, NewUiColors.primaryDark],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(32),
+        ),
       ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'مرحبًا بيك يا $name 👋',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
+                onPressed: () {},
+              ),
+              Row(
+                children: [
+                  const Text(
+                    'يَــفـهَــم',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.black,
+                      letterSpacing: 1,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'استمر في مذاكرتك وحل الاختبارات عشان تحسن مستواك',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.school, color: Colors.white, size: 20),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'تعلم بسهولة، وابدع كل يوم ✨',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 13,
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.emoji_events,
+          const SizedBox(height: 4),
+          Text(
+            'أهلاً بك 👋 ${user.name}',
+            style: const TextStyle(
               color: Colors.white,
-              size: 32,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -218,12 +239,119 @@ class _WelcomeBanner extends StatelessWidget {
   }
 }
 
-class _ProgressRow extends StatelessWidget {
+class _QuickAccessGrid extends StatelessWidget {
+  final AppUser user;
+  final Function(int) onNavigateToTab;
+
+  const _QuickAccessGrid({
+    required this.user,
+    required this.onNavigateToTab,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 14,
+      childAspectRatio: 1.3,
+      children: [
+        _CategoryCard(
+          title: 'المواد',
+          icon: Icons.menu_book_rounded,
+          color: const Color(0xFF2563EB),
+          onTap: () => onNavigateToTab(1),
+        ),
+        _CategoryCard(
+          title: 'الاختبارات',
+          icon: Icons.assignment_turned_in_rounded,
+          color: const Color(0xFF059669),
+          onTap: () => onNavigateToTab(2),
+        ),
+        _CategoryCard(
+          title: 'الرسائل',
+          icon: Icons.chat_bubble_rounded,
+          color: const Color(0xFFD97706),
+          onTap: () => onNavigateToTab(3),
+        ),
+        _CategoryCard(
+          title: 'الملف الشخصي',
+          icon: Icons.person_rounded,
+          color: const Color(0xFF7C3AED),
+          onTap: () => onNavigateToTab(4),
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CategoryCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: NewUiColors.textDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubjectProgressCard extends StatelessWidget {
   final String uid;
 
-  const _ProgressRow({
-    required this.uid,
-  });
+  const _SubjectProgressCard({required this.uid});
 
   @override
   Widget build(BuildContext context) {
@@ -237,295 +365,80 @@ class _ProgressRow extends StatelessWidget {
         final total = docs.length;
 
         double avg = 0;
-
         if (total > 0) {
           double sum = 0;
-
           for (final d in docs) {
             final data = d.data() as Map<String, dynamic>;
-
             final score = data['score'] ?? 0;
             final maxScore = data['maxScore'] ?? 1;
-
             if (score is num && maxScore is num && maxScore > 0) {
               sum += score / maxScore;
             }
           }
-
-          avg = (sum / total) * 100;
+          avg = (sum / total);
         }
 
-        return Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.check_circle,
-                color: const Color(0xFF43A047),
-                label: 'اختبارات مُنجزة',
-                value: snapshot.connectionState == ConnectionState.waiting
-                    ? '—'
-                    : '$total',
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.trending_up,
-                color: const Color(0xFF2E5AAC),
-                label: 'متوسط الدرجات',
-                value: snapshot.connectionState == ConnectionState.waiting
-                    ? '—'
-                    : '${avg.toStringAsFixed(0)}%',
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'معدل النجاح الإجمالي',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: NewUiColors.textDark,
+                    ),
+                  ),
+                  Text(
+                    '${(avg * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: NewUiColors.primary,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: avg,
+                  minHeight: 10,
+                  backgroundColor: NewUiColors.primary.withOpacity(0.12),
+                  valueColor: const AlwaysStoppedAnimation<Color>(NewUiColors.primary),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 18, color: Color(0xFF059669)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'إجمالي الاختبارات المكتملة: $total',
+                    style: const TextStyle(fontSize: 12, color: NewUiColors.textMuted),
+                  ),
+                ],
+              ),
+            ],
+          ),
         );
       },
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String value;
-
-  const _StatCard({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 18,
-        horizontal: 12,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-
-  const _SectionTitle({
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF1E293B),
-      ),
-    );
-  }
-}
-
-class _QuickActionsGrid extends StatelessWidget {
-  final AppUser user;
-
-  const _QuickActionsGrid({
-    required this.user,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = [
-      _QuickAction(
-        icon: Icons.menu_book,
-        color: const Color(0xFF2E5AAC),
-        label: 'المحتوى الدراسي',
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ContentListScreen(
-                user: user,
-              ),
-            ),
-          );
-        },
-      ),
-      _QuickAction(
-        icon: Icons.quiz,
-        color: const Color(0xFFAB47BC),
-        label: 'حل اختبار',
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => QuizListScreen(
-                user: user,
-              ),
-            ),
-          );
-        },
-      ),
-      _QuickAction(
-        icon: Icons.chat_bubble,
-        color: const Color(0xFF43A047),
-        label: 'اسأل المعلم',
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ChatHubScreen(
-                user: user,
-              ),
-            ),
-          );
-        },
-      ),
-      _QuickAction(
-        icon: Icons.emoji_events,
-        color: const Color(0xFFFB8C00),
-        label: 'نتائجي',
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => QuizListScreen(
-                user: user,
-              ),
-            ),
-          );
-        },
-      ),
-    ];
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 2.6,
-      children: actions,
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final VoidCallback onTap;
-
-  const _QuickAction({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.cardShadow,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -533,9 +446,7 @@ class _QuickAction extends StatelessWidget {
 class _RecentResultsList extends StatelessWidget {
   final String uid;
 
-  const _RecentResultsList({
-    required this.uid,
-  });
+  const _RecentResultsList({required this.uid});
 
   @override
   Widget build(BuildContext context) {
@@ -545,45 +456,24 @@ class _RecentResultsList extends StatelessWidget {
           .where('studentUid', isEqualTo: uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: Text('حدث خطأ أثناء تحميل النتائج')),
-          );
-        }
-
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            ),
-          );
+          return const Center(child: CircularProgressIndicator(color: NewUiColors.primary));
         }
 
         final docs = snapshot.data?.docs ?? [];
-
         if (docs.isEmpty) {
           return Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Center(
-              child: Text(
-                'لسه مفيش نتائج اختبارات',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
+              child: Text('لا يوجد نتائج اختبارات حتى الآن', style: TextStyle(color: NewUiColors.textMuted)),
             ),
           );
         }
 
-        // ترتيب المستندات في الكود لتجنب خطأ الترتيب المركب مع الفلترة
         final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
         sortedDocs.sort((a, b) {
           final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
@@ -593,9 +483,8 @@ class _RecentResultsList extends StatelessWidget {
         });
 
         return Column(
-          children: sortedDocs.take(4).map((doc) {
+          children: sortedDocs.take(3).map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-
             final score = data['score'] ?? 0;
             final maxScore = data['maxScore'] ?? 0;
 
@@ -604,12 +493,12 @@ class _RecentResultsList extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
                   BoxShadow(
-                    color: AppColors.cardShadow,
+                    color: Colors.black.withOpacity(0.02),
                     blurRadius: 8,
-                    offset: Offset(0, 3),
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -618,32 +507,24 @@ class _RecentResultsList extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFF59E0B).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.emoji_events,
-                      color: AppColors.accent,
-                      size: 20,
-                    ),
+                    child: const Icon(Icons.emoji_events, color: Color(0xFFD97706), size: 22),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       (data['quizTitle'] ?? 'اختبار').toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                   ),
                   Text(
                     '$score / $maxScore',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: AppColors.primary,
+                      fontSize: 14,
+                      color: NewUiColors.primary,
                     ),
                   ),
                 ],
@@ -652,6 +533,85 @@ class _RecentResultsList extends StatelessWidget {
           }).toList(),
         );
       },
+    );
+  }
+}
+
+class _ProfileTab extends StatelessWidget {
+  final AppUser user;
+
+  const _ProfileTab({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: NewUiColors.background,
+      appBar: AppBar(
+        title: const Text('الملف الشخصي', style: TextStyle(color: NewUiColors.textDark, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            CircleAvatar(
+              radius: 45,
+              backgroundColor: NewUiColors.primary.withOpacity(0.15),
+              child: const Icon(Icons.person, size: 50, color: NewUiColors.primary),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              user.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NewUiColors.textDark),
+            ),
+            Text(
+              user.email,
+              style: const TextStyle(fontSize: 13, color: NewUiColors.textMuted),
+            ),
+            const SizedBox(height: 28),
+            _buildProfileTile(Icons.info_outline, 'معلومات الحساب', () {}),
+            _buildProfileTile(Icons.lock_outline, 'تغيير كلمة المرور', () {}),
+            _buildProfileTile(Icons.help_outline, 'الدعم والمساعدة', () {}),
+            const SizedBox(height: 20),
+            _buildProfileTile(
+              Icons.logout,
+              'تسجيل الخروج',
+              () async => await AuthService().signOut(),
+              isDanger: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileTile(IconData icon, String title, VoidCallback onTap, {bool isDanger = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: isDanger ? Colors.red : NewUiColors.primary),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isDanger ? Colors.red : NewUiColors.textDark,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: isDanger ? Colors.red : NewUiColors.textMuted,
+        ),
+      ),
     );
   }
 }
