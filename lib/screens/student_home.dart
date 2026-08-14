@@ -32,61 +32,111 @@ class _StudentHomeState extends State<StudentHome> {
   @override
   void initState() {
     super.initState();
-    // التحقق فور دخول الطالب عما إذا كان غير مرتبط بمعلم
+    // التحقق فور دخول الطالب عما إذا كان غير مرتبط بمعلم أو بلا مرحلة دراسية
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkTeacherLink(context, widget.user.uid);
+      _checkTeacherAndGradeLink(context, widget.user.uid);
     });
   }
 
-  Future<void> _checkTeacherLink(BuildContext context, String studentUid) async {
+  Future<void> _checkTeacherAndGradeLink(BuildContext context, String studentUid) async {
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(studentUid).get();
       if (userDoc.exists) {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-        // إذا كان الحقل فارغاً أو غير موجود
-        if (data['linkedTeacherUid'] == null || data['linkedTeacherUid'].toString().isEmpty) {
+        
+        bool isTeacherMissing = data['linkedTeacherUid'] == null || data['linkedTeacherUid'].toString().isEmpty;
+        bool isGradeMissing = data['grade'] == null || data['grade'].toString().isEmpty;
+
+        // إذا كان أحدهما ناقصاً، نعرض نافذة الإكمال الإجبارية
+        if (isTeacherMissing || isGradeMissing) {
           if (context.mounted) {
             _showEnterTeacherCodeDialog(context, studentUid);
           }
         }
       }
     } catch (e) {
-      debugPrint('Error checking teacher link: $e');
+      debugPrint('Error checking teacher link and grade: $e');
     }
   }
 
   void _showEnterTeacherCodeDialog(BuildContext context, String studentUid) {
     final codeController = TextEditingController();
+    String? selectedGrade;
     bool isSubmitting = false;
+
+    // قائمة الـ 12 مرحلة دراسية بالكامل
+    final List<String> educationalStages = [
+      'الصف الأول الابتدائي',
+      'الصف الثاني الابتدائي',
+      'الصف الثالث الابتدائي',
+      'الصف الرابع الابتدائي',
+      'الصف الخامس الابتدائي',
+      'الصف السادس الابتدائي',
+      'الصف الأول الإعدادي',
+      'الصف الثاني الإعدادي',
+      'الصف الثالث الإعدادي',
+      'الصف الأول الثانوي',
+      'الصف الثاني الثانوي',
+      'الصف الثالث الثانوي',
+    ];
 
     showDialog(
       context: context,
-      barrierDismissible: false, // لا يمكن إغلاقه إلا بربط المعلم
+      barrierDismissible: false, // لا يمكن إغلاقه إلا بإدخال الكود والمرحلة
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('ربط الحساب بمعلم', style: TextStyle(fontWeight: FontWeight.bold, color: NewUiColors.textDark)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'حسابك غير مرتبط بأي معلم حالياً. من فضلك أدخل كود المعلم للانضمام لمجموعته ومتابعة دروسك:',
-                style: TextStyle(fontSize: 13, color: NewUiColors.textMuted, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: codeController,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  hintText: 'أدخل كود المعلم (مثال: 8KX5F5)',
-                  filled: true,
-                  fillColor: const Color(0xFFF1F5F9),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          title: const Text('استكمال بيانات الحساب', style: TextStyle(fontWeight: FontWeight.bold, color: NewUiColors.textDark)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'حسابك غير مكتمل. يرجى إدخال كود المعلم واختيار مرحلتك الدراسية للمتابعة:',
+                  style: TextStyle(fontSize: 13, color: NewUiColors.textMuted, height: 1.4),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                
+                // حقل كود المعلم
+                TextField(
+                  controller: codeController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'أدخل كود المعلم (مثال: 8KX5F5)',
+                    filled: true,
+                    fillColor: const Color(0xFFF1F5F9),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // قائمة منسدلة للمرحلة الدراسية
+                DropdownButtonFormField<String>(
+                  value: selectedGrade,
+                  hint: const Text('اختر المرحلة الدراسية', style: TextStyle(fontSize: 13)),
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFFF1F5F9),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  items: educationalStages.map((stage) {
+                    return DropdownMenuItem(
+                      value: stage,
+                      child: Text(stage, style: const TextStyle(fontSize: 13)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedGrade = value;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             SizedBox(
@@ -99,9 +149,16 @@ class _StudentHomeState extends State<StudentHome> {
                 ),
                 onPressed: isSubmitting ? null : () async {
                   String enteredCode = codeController.text.trim().toUpperCase();
+                  
                   if (enteredCode.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('من فضلك ادخل كود المعلم')),
+                    );
+                    return;
+                  }
+                  if (selectedGrade == null || selectedGrade!.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('من فضلك اختر المرحلة الدراسية')),
                     );
                     return;
                   }
@@ -117,17 +174,19 @@ class _StudentHomeState extends State<StudentHome> {
                     if (teacherQuery.docs.isNotEmpty) {
                       String teacherUid = teacherQuery.docs.first.id;
 
+                      // تحديث كود المعلم والمرحلة الدراسية في قاعدة البيانات
                       await FirebaseFirestore.instance.collection('users').doc(studentUid).update({
                         'linkedTeacherUid': teacherUid,
+                        'grade': selectedGrade,
                         'status': 'pending',
                       });
 
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم ربط الحساب وإرسال الطلب للمعلم بنجاح 🎉'), backgroundColor: Colors.green),
+                          const SnackBar(content: Text('تم تحديث البيانات وربط الحساب بنجاح 🎉'), backgroundColor: Colors.green),
                         );
-                        setState(() {}); // لتحديث الواجهة إن أمكن
+                        setState(() {});
                       }
                     } else {
                       if (ctx.mounted) {
@@ -173,7 +232,7 @@ class _StudentHomeState extends State<StudentHome> {
       ChatHubScreen(user: widget.user),
       _ProfileTab(
         user: widget.user,
-        onRecheckCode: () => _checkTeacherLink(context, widget.user.uid),
+        onRecheckCode: () => _checkTeacherAndGradeLink(context, widget.user.uid),
       ),
     ];
 
@@ -707,7 +766,7 @@ class _ProfileTab extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             _buildProfileTile(Icons.info_outline, 'معلومات الحساب', () {}),
-            _buildProfileTile(Icons.vpn_key_outlined, 'إدخال أو تغيير كود المعلم', onRecheckCode),
+            _buildProfileTile(Icons.school_outlined, 'تحديث كود المعلم والمرحلة الدراسية', onRecheckCode),
             _buildProfileTile(Icons.lock_outline, 'تغيير كلمة المرور', () {}),
             _buildProfileTile(Icons.help_outline, 'الدعم والمساعدة', () {}),
             const SizedBox(height: 20),
