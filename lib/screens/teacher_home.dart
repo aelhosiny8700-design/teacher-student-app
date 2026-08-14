@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'quiz_create_screen.dart';
@@ -34,7 +35,7 @@ class _TeacherHomeState extends State<TeacherHome> {
       ),
       _UploadedContentTab(user: widget.user, onOpenUploadModal: () => _showAddContentModal(context)),
       _TeacherQuizzesTab(user: widget.user),
-      _PlaceholderTab(title: 'الرسائل والاستفسارات', icon: Icons.chat),
+      _TeacherStudentsTab(user: widget.user), // شاشة إدارة الطلاب
       _TeacherProfileTab(user: widget.user),
     ];
 
@@ -67,7 +68,7 @@ class _TeacherHomeState extends State<TeacherHome> {
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
             BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: 'المحتوى'),
             BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), activeIcon: Icon(Icons.assignment), label: 'الاختبارات'),
-            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat_bubble), label: 'الرسائل'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), activeIcon: Icon(Icons.people_alt), label: 'الطلاب'),
             BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'المزيد'),
           ],
         ),
@@ -85,6 +86,9 @@ class _TeacherHomeState extends State<TeacherHome> {
   }
 }
 
+// ==========================================
+// 1. شاشة الرئيسية للمعلم
+// ==========================================
 class _TeacherDashboardTab extends StatelessWidget {
   final AppUser user;
   final Function(int) onNavigateToTab;
@@ -144,7 +148,7 @@ class _TeacherDashboardTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatsRow(user.uid),
+                _buildStatsRow(user.uid, onNavigateToTab),
                 const SizedBox(height: 24),
                 const Text('الوصول السريع', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
                 const SizedBox(height: 12),
@@ -160,7 +164,7 @@ class _TeacherDashboardTab extends StatelessWidget {
                       },
                     ),
                     _QuickTile(title: 'المحتوى المضاف', icon: Icons.folder_copy_rounded, color: const Color(0xFFD97706), onTap: () => onNavigateToTab(1)),
-                    _QuickTile(title: 'الاختبارات', icon: Icons.assignment, color: const Color(0xFF7C3AED), onTap: () => onNavigateToTab(2)),
+                    _QuickTile(title: 'قائمة الطلاب', icon: Icons.people_alt_rounded, color: const Color(0xFF7C3AED), onTap: () => onNavigateToTab(3)),
                   ],
                 ),
               ],
@@ -171,7 +175,7 @@ class _TeacherDashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow(String teacherUid) {
+  Widget _buildStatsRow(String teacherUid, Function(int) onNavigateToTab) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').where('linkedTeacherUid', isEqualTo: teacherUid).snapshots(),
       builder: (context, studentSnap) {
@@ -182,9 +186,15 @@ class _TeacherDashboardTab extends StatelessWidget {
             final quizCount = quizSnap.data?.docs.length ?? 0;
             return Row(
               children: [
-                _StatCard(title: 'الطلاب', count: '$studentsCount', icon: Icons.people, color: const Color(0xFF2563EB)),
+                GestureDetector(
+                  onTap: () => onNavigateToTab(3),
+                  child: _StatCard(title: 'الطلاب', count: '$studentsCount', icon: Icons.people, color: const Color(0xFF2563EB)),
+                ),
                 const SizedBox(width: 10),
-                _StatCard(title: 'الاختبارات', count: '$quizCount', icon: Icons.assignment, color: const Color(0xFF7C3AED)),
+                GestureDetector(
+                  onTap: () => onNavigateToTab(2),
+                  child: _StatCard(title: 'الاختبارات', count: '$quizCount', icon: Icons.assignment, color: const Color(0xFF7C3AED)),
+                ),
               ],
             );
           },
@@ -194,6 +204,163 @@ class _TeacherDashboardTab extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 2. شاشة إدارة الطلاب وحذفهم
+// ==========================================
+class _TeacherStudentsTab extends StatelessWidget {
+  final AppUser user;
+
+  const _TeacherStudentsTab({required this.user});
+
+  void _confirmDeleteStudent(BuildContext context, String studentId, String studentName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('إزالة طالب', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('هل أنت أستاذ/ة متأكد من إزالة الطالب ($studentName) من مجموعتك؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              // إلغاء ربط الطالب بالمعلم
+              await FirebaseFirestore.instance.collection('users').doc(studentId).update({
+                'linkedTeacherUid': FieldValue.delete(),
+              });
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('تمت إزالة الطالب $studentName بنجاح')),
+                );
+              }
+            },
+            child: const Text('إزالة الطالب', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openWhatsApp(String phone) async {
+    if (phone.trim().isEmpty) return;
+    String formattedPhone = phone.trim();
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '20${formattedPhone.substring(1)}';
+    }
+    final Uri url = Uri.parse('https://wa.me/$formattedPhone');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: TeacherColors.background,
+      appBar: AppBar(
+        title: const Text('قائمة الطلاب المضافين', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('linkedTeacherUid', isEqualTo: user.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: TeacherColors.primary));
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.group_off_outlined, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  const Text('لا يوجد طلاب مربوطين بكودك حالياً', style: TextStyle(color: TeacherColors.textMuted)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final name = data['name'] ?? 'طالب بدون اسم';
+              final stage = data['stage'] ?? 'لم يحدد الصف';
+              final parentPhone = data['parentPhone'] ?? '';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: TeacherColors.primary.withOpacity(0.12),
+                      child: const Icon(Icons.person, color: TeacherColors.primary, size: 26),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: TeacherColors.textDark)),
+                          const SizedBox(height: 4),
+                          Text(stage, style: const TextStyle(fontSize: 12, color: TeacherColors.textMuted)),
+                          if (parentPhone.isNotEmpty)
+                            Text('ولي الأمر: $parentPhone', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    if (parentPhone.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.chat, color: Colors.green),
+                        tooltip: 'مراسلة ولي الأمر',
+                        onPressed: () => _openWhatsApp(parentPhone),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'حذف الطالب',
+                      onPressed: () => _confirmDeleteStudent(context, doc.id, name),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 3. باقي التبويبات والمكونات المساعدة
+// ==========================================
 class _TeacherQuizzesTab extends StatelessWidget {
   final AppUser user;
 
@@ -386,13 +553,3 @@ class _TeacherProfileTab extends StatelessWidget {
     return Scaffold(body: Center(child: ElevatedButton(onPressed: () => AuthService().signOut(), child: const Text('تسجيل الخروج'))));
   }
 }
-
-class _PlaceholderTab extends StatelessWidget {
-  final String title; final IconData icon;
-  const _PlaceholderTab({required this.title, required this.icon});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(body: Center(child: Text(title)));
-  }
-}
-
