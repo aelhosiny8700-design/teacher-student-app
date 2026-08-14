@@ -182,7 +182,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // الهيدر
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -440,37 +439,39 @@ class _TeacherStudentsScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('إزالة طالب', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Text('هل أنت متأكد من إزالة الطالب ($studentName) من مجموعتك؟'),
-              actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            
-            DocumentSnapshot studentDoc = await FirebaseFirestore.instance.collection('users').doc(studentId).get();
-            if (studentDoc.exists) {
-              Map<String, dynamic> studentData = studentDoc.data() as Map<String, dynamic>;
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              
+              DocumentSnapshot studentDoc = await FirebaseFirestore.instance.collection('users').doc(studentId).get();
+              if (studentDoc.exists) {
+                Map<String, dynamic> studentData = studentDoc.data() as Map<String, dynamic>;
 
-              await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set(studentData);
+                await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set(studentData);
 
-              await FirebaseFirestore.instance.collection('users').doc(studentId).update({
-                'linkedTeacherUid': FieldValue.delete(),
-              });
-            }
+                await FirebaseFirestore.instance.collection('users').doc(studentId).update({
+                  'linkedTeacherUid': FieldValue.delete(),
+                });
+              }
 
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم نقل الطالب للأرشيف بنجاح')),
-              );
-            }
-          },
-          child: const Text('إزالة الطالب', style: TextStyle(color: Colors.white)),
-        ),
-      ],
-
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم نقل الطالب للأرشيف بنجاح')),
+                );
+              }
+            },
+            child: const Text('إزالة الطالب', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _openWhatsApp(String phone) async {
     if (phone.trim().isEmpty) return;
@@ -1233,7 +1234,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
 }
 
 // ==========================================
-// 7. المكونات المساعدة (تم إصلاح التنسيق لتفادي الشاشة الرصاصي)
+// 7. المكونات المساعدة
 // ==========================================
 class _StatCard extends StatelessWidget {
   final String title, count;
