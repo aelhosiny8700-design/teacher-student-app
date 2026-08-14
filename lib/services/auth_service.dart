@@ -13,6 +13,7 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
+  // تسجيل حساب جديد
   Future<String?> signUp({
     required String name,
     required String email,
@@ -20,18 +21,22 @@ class AuthService {
     required String role,
     String? stage,
     String? teacherCode,
+    String? teacherCodeInput,
+    String? parentPhone,
   }) async {
     String? linkedTeacherUid;
     String? myTeacherCode;
     String status = 'approved';
 
+    final effectiveTeacherCode = teacherCode ?? teacherCodeInput;
+
     if (role == 'student') {
-      if (teacherCode == null || teacherCode.trim().isEmpty) {
+      if (effectiveTeacherCode == null || effectiveTeacherCode.trim().isEmpty) {
         return 'من فضلك أدخل كود المعلم';
       }
 
       try {
-        final teacher = await _firestoreService.findTeacherByCode(teacherCode.trim());
+        final teacher = await _firestoreService.findTeacherByCode(effectiveTeacherCode.trim());
 
         if (teacher == null) {
           return 'كود المعلم غير صحيح';
@@ -56,23 +61,22 @@ class AuthService {
         myTeacherCode = await _firestoreService.generateUniqueTeacherCode();
       }
 
-      final newUser = AppUser(
-        uid: uid,
-        name: name.trim(),
-        email: email.trim(),
-        role: role,
-        stage: role == 'student' ? stage : null,
-        teacherCode: role == 'teacher' ? myTeacherCode : null,
-        linkedTeacherUid: linkedTeacherUid,
-        status: status,
-      );
+      final Map<String, dynamic> userData = {
+        'uid': uid,
+        'name': name.trim(),
+        'email': email.trim(),
+        'role': role,
+        'stage': role == 'student' ? stage : null,
+        'teacherCode': role == 'teacher' ? myTeacherCode : null,
+        'linkedTeacherUid': linkedTeacherUid,
+        'parentPhone': role == 'student' ? parentPhone?.trim() : null,
+        'status': status,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-      await _db.collection('users').doc(uid).set(newUser.toMap());
+      await _db.collection('users').doc(uid).set(userData);
 
       if (role == 'student' && status == 'pending') {
-        // لا signOut هنا خالص. login_screen هي اللي بتعمل signOut
-        // بنفسها بعد ما تعرض رسالة النجاح للمستخدم، عشان نضمن
-        // إن الرسالة اتشافت قبل ما authStateChanges يغيّر الشاشة.
         return 'تم إنشاء حسابك بنجاح، وهيتم تفعيله بعد موافقة المعلم';
       }
 
@@ -84,11 +88,13 @@ class AuthService {
     }
   }
 
-  Future<String?> signIn({required String email, required String password}) async {
+  // تسجيل الدخول (يدعم الاستدعاء المباشر)
+  Future<String?> signIn(String email, [String? password]) async {
+    final pass = password ?? '';
     try {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
-        password: password,
+        password: pass,
       );
 
       final uid = credential.user!.uid;
@@ -118,6 +124,11 @@ class AuthService {
     }
   }
 
+  // دالة إعادة تعيين كلمة السر (نسيت كلمة السر)
+  Future<String?> resetPassword(String email) async {
+    return sendPasswordResetEmail(email);
+  }
+
   Future<String?> sendPasswordResetEmail(String email) async {
     try {
       final trimmedEmail = email.trim();
@@ -138,9 +149,13 @@ class AuthService {
   }
 
   Future<AppUser?> getUserData(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
-    if (doc.exists && doc.data() != null) {
-      return AppUser.fromMap(doc.data()!);
+    try {
+      final doc = await _db.collection('users').doc(uid).get();
+      if (doc.exists && doc.data() != null) {
+        return AppUser.fromMap(doc.data()!);
+      }
+    } catch (e) {
+      // ignore
     }
     return null;
   }
