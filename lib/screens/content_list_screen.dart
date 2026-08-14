@@ -45,19 +45,20 @@ class _ContentListScreenState extends State<ContentListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // جلب أحدث بيانات الطالب لحظياً من Firestore
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
       builder: (context, userSnapshot) {
         String? teacherUid = widget.user.linkedTeacherUid;
-        String? studentStage = widget.user.stage;
+        // دعم قراءة الحقل سواء كان grade أو stage
+        String? studentGrade = widget.user.grade ?? widget.user.stage;
         String? status = widget.user.status;
 
         if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
           final rawUser = userSnapshot.data!.data();
           if (rawUser is Map) {
             teacherUid = rawUser['linkedTeacherUid']?.toString() ?? teacherUid;
-            studentStage = rawUser['stage']?.toString() ?? studentStage;
+            // قراءة grade أو stage من قاعدة البيانات مباشرة
+            studentGrade = rawUser['grade']?.toString() ?? rawUser['stage']?.toString() ?? studentGrade;
             status = rawUser['status']?.toString() ?? status;
           }
         }
@@ -68,20 +69,20 @@ class _ContentListScreenState extends State<ContentListScreen> {
             title: Column(
               children: [
                 const Text('المحتوى الدراسي 📚', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(studentStage ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+                Text(studentGrade ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
               ],
             ),
             backgroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
           ),
-          body: _buildBody(teacherUid, studentStage, status),
+          body: _buildBody(teacherUid, studentGrade, status),
         );
       },
     );
   }
 
-  Widget _buildBody(String? teacherUid, String? studentStage, String? status) {
+  Widget _buildBody(String? teacherUid, String? studentGrade, String? status) {
     if (teacherUid == null || teacherUid.isEmpty) {
       return Center(
         child: Padding(
@@ -107,6 +108,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
       );
     }
 
+    // ملاحظة: إذا أردت أن يظهر المحتوى للطالب حتى لو كان في حالة pending، يمكنك إزالة هذا الشرط
     if (status == 'pending') {
       return Center(
         child: Padding(
@@ -134,7 +136,6 @@ class _ContentListScreenState extends State<ContentListScreen> {
 
     return Column(
       children: [
-        // شريط فلاتر نوع المحتوى
         Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -168,7 +169,6 @@ class _ContentListScreenState extends State<ContentListScreen> {
         ),
         const SizedBox(height: 12),
 
-        // جلب المحتوى الخاص بالمعلم
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
@@ -182,19 +182,19 @@ class _ContentListScreenState extends State<ContentListScreen> {
 
               final docs = snapshot.data?.docs ?? [];
 
-              // تصفية المحتوى حسب مرحلة الطالب ونوع المحتوى
               final filteredDocs = docs.where((doc) {
                 final raw = doc.data();
                 if (raw is! Map) return false;
                 final data = raw.cast<String, dynamic>();
 
-                final contentStage = data['stage']?.toString();
+                // فحص الحقل سواء كان grade أو stage في جدول المحتويات
+                final contentGrade = data['grade']?.toString() ?? data['stage']?.toString();
                 final contentType = data['type']?.toString();
 
-                final bool stageMatch = (studentStage == null || studentStage.isEmpty) || (contentStage == studentStage);
+                final bool gradeMatch = (studentGrade == null || studentGrade.isEmpty) || (contentGrade == studentGrade);
                 final bool typeMatch = _selectedTypeFilter == 'الكل' || (contentType == _selectedTypeFilter);
 
-                return stageMatch && typeMatch;
+                return gradeMatch && typeMatch;
               }).toList();
 
               if (filteredDocs.isEmpty) {
@@ -205,7 +205,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
                       Icon(Icons.folder_open_outlined, size: 64, color: Colors.grey.shade400),
                       const SizedBox(height: 12),
                       Text(
-                        'لا يوجد محتوى مضاف لـ (${studentStage ?? 'صفك'}) حالياً',
+                        'لا يوجد محتوى مضاف لـ (${studentGrade ?? 'صفك'}) حالياً',
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
