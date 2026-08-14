@@ -5,10 +5,11 @@ class AppUser {
   final String role; // teacher / student
   final String? classId;
   final String? stage;
+  final String? parentPhone; // رقم ولي الأمر
 
   // نظام تعدد المعلمين
-  final String? teacherCode; // كود المعلم (لو المستخدم معلم)
-  final String? linkedTeacherUid; // المعلم المرتبط بيه الطالب
+  final String? teacherCode;
+  final String? linkedTeacherUid;
   final String status; // approved / pending / rejected
 
   AppUser({
@@ -18,6 +19,7 @@ class AppUser {
     required this.role,
     this.classId,
     this.stage,
+    this.parentPhone,
     this.teacherCode,
     this.linkedTeacherUid,
     this.status = 'approved',
@@ -31,6 +33,7 @@ class AppUser {
       'role': role,
       'classId': classId,
       'stage': stage,
+      'parentPhone': parentPhone,
       'teacherCode': teacherCode,
       'linkedTeacherUid': linkedTeacherUid,
       'status': status,
@@ -45,6 +48,7 @@ class AppUser {
       role: map['role']?.toString() ?? 'student',
       classId: map['classId']?.toString(),
       stage: map['stage']?.toString(),
+      parentPhone: map['parentPhone']?.toString(),
       teacherCode: map['teacherCode']?.toString(),
       linkedTeacherUid: map['linkedTeacherUid']?.toString(),
       status: map['status']?.toString() ?? 'approved',
