@@ -441,7 +441,7 @@ class _TeacherStudentsScreen extends StatelessWidget {
         title: const Text('إزالة طالب', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Text('هل أنت متأكد من إزالة الطالب ($studentName) من مجموعتك؟'),
         actions: [
-          TextButton(
+                    TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
           ),
@@ -449,18 +449,27 @@ class _TeacherStudentsScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(ctx);
-              await FirebaseFirestore.instance.collection('users').doc(studentId).update({
-                'linkedTeacherUid': FieldValue.delete(),
-              });
+              
+              DocumentSnapshot studentDoc = await FirebaseFirestore.instance.collection('users').doc(studentId).get();
+              if (studentDoc.exists) {
+                Map<String, dynamic> studentData = studentDoc.data() as Map<String, dynamic>;
+
+                await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set(studentData);
+
+                await FirebaseFirestore.instance.collection('users').doc(studentId).update({
+                  'linkedTeacherUid': FieldValue.delete(),
+                });
+              }
+
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تمت إزالة الطالب $studentName بنجاح')),
+                  const SnackBar(content: Text('تم نقل الطالب للأرشيف بنجاح')),
                 );
               }
             },
             child: const Text('إزالة الطالب', style: TextStyle(color: Colors.white)),
           ),
-        ],
+          
       ),
     );
   }
