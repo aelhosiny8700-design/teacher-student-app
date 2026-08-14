@@ -50,7 +50,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
       builder: (context, userSnapshot) {
         String? teacherUid = widget.user.linkedTeacherUid;
         // دعم قراءة الحقل سواء كان grade أو stage
-        String? studentGrade = widget.user.grade ?? widget.user.stage;
+String? studentGrade = widget.user.stage;
         String? status = widget.user.status;
 
         if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
