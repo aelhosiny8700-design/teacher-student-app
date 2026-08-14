@@ -1453,10 +1453,12 @@ class _ArchivedStudentsScreen extends StatelessWidget {
                       icon: const Icon(Icons.delete_forever, color: Colors.red),
                       tooltip: 'حذف نهائي',
                       onPressed: () async {
+                        // حذف نهائي من الأرشيف ومن جدول users أيضاً
                         await FirebaseFirestore.instance.collection('archived_students').doc(doc.id).delete();
+                        await FirebaseFirestore.instance.collection('users').doc(doc.id).delete();
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('تم حذف الطالب نهائياً')),
+                            const SnackBar(content: Text('تم حذف الطالب نهائياً من النظام')),
                           );
                         }
                       },
