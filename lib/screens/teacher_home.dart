@@ -222,9 +222,11 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                   stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
                   builder: (context, snapshot) {
                     String? currentCode = widget.user.teacherCode;
-                    if (snapshot.hasData && snapshot.data!.exists) {
-                      final data = snapshot.data!.data() as Map<String, dynamic>?;
-                      currentCode = data?['teacherCode'] ?? currentCode;
+                    if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+                      final raw = snapshot.data!.data();
+                      if (raw is Map) {
+                        currentCode = raw['teacherCode']?.toString() ?? currentCode;
+                      }
                     }
 
                     if (currentCode == null || currentCode.isEmpty) {
@@ -300,7 +302,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                   crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.25,
                   children: [
                     _QuickTile(
-                      title: 'رفع محتوى من الموبايل',
+                      title: 'رفع محتوى دراسي',
                       icon: Icons.cloud_upload_rounded,
                       color: const Color(0xFF2563EB),
                       onTap: widget.onOpenUploadModal,
@@ -328,12 +330,13 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                           .snapshots(),
                       builder: (context, pendingSnap) {
                         int pendingCount = 0;
-                        if (pendingSnap.hasData) {
-                          final docs = pendingSnap.data!.docs;
-                          pendingCount = docs.where((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            return data['status'] == 'pending';
-                          }).length;
+                        if (pendingSnap.hasData && pendingSnap.data != null) {
+                          for (var doc in pendingSnap.data!.docs) {
+                            final raw = doc.data();
+                            if (raw is Map && raw['status'] == 'pending') {
+                              pendingCount++;
+                            }
+                          }
                         }
 
                         return _QuickTile(
@@ -378,15 +381,15 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').where('linkedTeacherUid', isEqualTo: teacherUid).snapshots(),
       builder: (context, studentSnap) {
-        final studentsCount = studentSnap.data?.docs.length ?? 0;
+        final studentsCount = (studentSnap.hasData && studentSnap.data != null) ? studentSnap.data!.docs.length : 0;
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('quizzes').where('teacherUid', isEqualTo: teacherUid).snapshots(),
           builder: (context, quizSnap) {
-            final quizCount = quizSnap.data?.docs.length ?? 0;
+            final quizCount = (quizSnap.hasData && quizSnap.data != null) ? quizSnap.data!.docs.length : 0;
             return StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('contents').where('teacherUid', isEqualTo: teacherUid).snapshots(),
               builder: (context, contentSnap) {
-                final contentCount = contentSnap.data?.docs.length ?? 0;
+                final contentCount = (contentSnap.hasData && contentSnap.data != null) ? contentSnap.data!.docs.length : 0;
                 return Row(
                   children: [
                     GestureDetector(
@@ -417,7 +420,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
 }
 
 // ==========================================
-// 2. شاشة إدارة الطلاب وحذفهم ومراسلته
+// 2. شاشة إدارة الطلاب
 // ==========================================
 class _TeacherStudentsScreen extends StatelessWidget {
   final AppUser user;
@@ -509,10 +512,11 @@ class _TeacherStudentsScreen extends StatelessWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final name = data['name'] ?? 'طالب بدون اسم';
-              final stage = data['stage'] ?? 'لم يحدد الصف';
-              final parentPhone = data['parentPhone'] ?? '';
+              final raw = doc.data();
+              final Map<String, dynamic> data = (raw is Map) ? raw.cast<String, dynamic>() : {};
+              final name = data['name']?.toString() ?? 'طالب بدون اسم';
+              final stage = data['stage']?.toString() ?? 'لم يحدد الصف';
+              final parentPhone = data['parentPhone']?.toString() ?? '';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -618,7 +622,8 @@ class _TeacherQuizzesTab extends StatelessWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final doc = docs[index];
-              final q = doc.data() as Map<String, dynamic>;
+              final raw = doc.data();
+              final Map<String, dynamic> q = (raw is Map) ? raw.cast<String, dynamic>() : {};
               final questions = (q['questions'] as List?)?.length ?? 0;
 
               return Container(
@@ -634,7 +639,7 @@ class _TeacherQuizzesTab extends StatelessWidget {
                     );
                   },
                   leading: const CircleAvatar(backgroundColor: Color(0xFFE0E7FF), child: Icon(Icons.quiz, color: TeacherColors.primary)),
-                  title: Text(q['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(q['title']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${q['subject']} • ${q['stage']} • $questions أسئلة'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -738,8 +743,10 @@ class _UploadedContentTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
             itemBuilder: (context, i) {
-              final d = docs[i].data() as Map<String, dynamic>;
-              final fileUrl = d['fileUrl'] ?? '';
+              final doc = docs[i];
+              final raw = doc.data();
+              final Map<String, dynamic> d = (raw is Map) ? raw.cast<String, dynamic>() : {};
+              final fileUrl = d['fileUrl']?.toString() ?? '';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -747,7 +754,7 @@ class _UploadedContentTab extends StatelessWidget {
                 child: ListTile(
                   onTap: () => _openContentUrl(context, fileUrl),
                   leading: const Icon(Icons.insert_drive_file, color: TeacherColors.primary),
-                  title: Text(d['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(d['title']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${d['stage'] ?? ''} • ${d['type'] ?? ''}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -760,7 +767,7 @@ class _UploadedContentTab extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.red),
                         tooltip: 'حذف',
-                        onPressed: () => FirebaseFirestore.instance.collection('contents').doc(docs[i].id).delete(),
+                        onPressed: () => FirebaseFirestore.instance.collection('contents').doc(doc.id).delete(),
                       ),
                     ],
                   ),
@@ -813,12 +820,13 @@ class _TeacherProfileTab extends StatelessWidget {
                   .snapshots(),
               builder: (context, pendingSnap) {
                 int pendingCount = 0;
-                if (pendingSnap.hasData) {
-                  final docs = pendingSnap.data!.docs;
-                  pendingCount = docs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return data['status'] == 'pending';
-                  }).length;
+                if (pendingSnap.hasData && pendingSnap.data != null) {
+                  for (var doc in pendingSnap.data!.docs) {
+                    final raw = doc.data();
+                    if (raw is Map && raw['status'] == 'pending') {
+                      pendingCount++;
+                    }
+                  }
                 }
 
                 return Container(
@@ -918,6 +926,8 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _urlController = TextEditingController();
+
+  String _uploadSource = 'file';
   String? _selectedStage = 'الصف الأول الإعدادي';
   String? _selectedType = 'مذكرة / ملف PDF';
   bool _isLoading = false;
@@ -975,7 +985,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم رفع الملف بنجاح! 🎉'), backgroundColor: Colors.green),
+              const SnackBar(content: Text('تم رفع الملف بنجاح 🎉'), backgroundColor: Colors.green),
             );
           }
         } else {
@@ -995,10 +1005,25 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
 
   Future<void> _uploadContent() async {
     final title = _titleController.text.trim();
+    final fileUrl = _urlController.text.trim();
+
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('من فضلك أدخل عنوان المحتوى')),
       );
+      return;
+    }
+
+    if (fileUrl.isEmpty) {
+      if (_uploadSource == 'file') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('من فضلك اضغط على زر اختيار الملف أولاً وانتظر اكتمال الرفع')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('من فضلك أدخل رابط المحتوى المباشر')),
+        );
+      }
       return;
     }
 
@@ -1008,9 +1033,10 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
       await FirebaseFirestore.instance.collection('contents').add({
         'title': title,
         'description': _descController.text.trim(),
-        'fileUrl': _urlController.text.trim(),
+        'fileUrl': fileUrl,
         'stage': _selectedStage,
         'type': _selectedType,
+        'uploadSource': _uploadSource,
         'teacherUid': widget.teacherUid,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -1050,22 +1076,53 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
             ),
             const SizedBox(height: 12),
 
-            OutlinedButton.icon(
-              onPressed: _isUploadingFile ? null : _pickAndUploadFileFromPhone,
-              icon: _isUploadingFile
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.file_upload_outlined, color: TeacherColors.primary),
-              label: Text(
-                _pickedFileName != null ? 'تم اختيار: $_pickedFileName' : 'اختيار ملف من ذاكرة الهاتف 📁',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary),
-              ),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                side: const BorderSide(color: TeacherColors.primary, width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            const Text('طريقة الرفع', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _uploadSource,
+              decoration: _inputDecoration(),
+              items: const [
+                DropdownMenuItem(value: 'file', child: Text('رفع ملف من ذاكرة الهاتف (PDF / فيديو / صورة)')),
+                DropdownMenuItem(value: 'link', child: Text('إدخال رابط مباشر (Drive / YouTube / غيره)')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _uploadSource = val;
+                  });
+                }
+              },
             ),
             const SizedBox(height: 14),
+
+            if (_uploadSource == 'file') ...[
+              OutlinedButton.icon(
+                onPressed: _isUploadingFile ? null : _pickAndUploadFileFromPhone,
+                icon: _isUploadingFile
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.file_upload_outlined, color: TeacherColors.primary),
+                label: Text(
+                  _pickedFileName != null ? 'تم اختيار: $_pickedFileName' : 'اضغط لاختيار الملف من الهاتف 📁',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: const BorderSide(color: TeacherColors.primary, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            if (_uploadSource == 'link') ...[
+              const Text('رابط المحتوى المباشر', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _urlController,
+                decoration: _inputDecoration(hint: 'ضع رابط Google Drive أو YouTube هنا'),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             const Text('الصف الدراسي', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
@@ -1076,6 +1133,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
               onChanged: (val) => setState(() => _selectedStage = val),
             ),
             const SizedBox(height: 12),
+
             const Text('نوع المحتوى', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
@@ -1085,14 +1143,12 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
               onChanged: (val) => setState(() => _selectedType = val),
             ),
             const SizedBox(height: 12),
+
             const Text('عنوان المحتوى', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             TextField(controller: _titleController, decoration: _inputDecoration(hint: 'مثال: شرح درس الذرة والمادة')),
-            const SizedBox(height: 12),
-            const Text('رابط الملف / الفيديو', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            TextField(controller: _urlController, decoration: _inputDecoration(hint: 'ضع رابط التحميل هنا')),
             const SizedBox(height: 20),
+
             SizedBox(
               width: double.infinity,
               height: 48,
