@@ -16,7 +16,7 @@ class QuizListScreen extends StatelessWidget {
       builder: (context, userSnapshot) {
         String? teacherUid = user.linkedTeacherUid;
         // دعم قراءة المرحلة سواء كانت مخزنة كـ grade أو stage
-        String? studentGrade = user.grade ?? user.stage;
+String? studentGrade = user.stage;
         String? status = user.status;
 
         if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
