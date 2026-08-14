@@ -1,9 +1,12 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'quiz_create_screen.dart';
+import 'pending_approvals_screen.dart';
 
 class TeacherColors {
   static const primary = Color(0xFF0062E6);
@@ -35,7 +38,7 @@ class _TeacherHomeState extends State<TeacherHome> {
       ),
       _UploadedContentTab(user: widget.user, onOpenUploadModal: () => _showAddContentModal(context)),
       _TeacherQuizzesTab(user: widget.user),
-      _TeacherStudentsTab(user: widget.user), // شاشة إدارة الطلاب
+      _TeacherStudentsTab(user: widget.user),
       _TeacherProfileTab(user: widget.user),
     ];
 
@@ -89,7 +92,7 @@ class _TeacherHomeState extends State<TeacherHome> {
 // ==========================================
 // 1. شاشة الرئيسية للمعلم
 // ==========================================
-class _TeacherDashboardTab extends StatelessWidget {
+class _TeacherDashboardTab extends StatefulWidget {
   final AppUser user;
   final Function(int) onNavigateToTab;
   final VoidCallback onOpenUploadModal;
@@ -101,10 +104,55 @@ class _TeacherDashboardTab extends StatelessWidget {
   });
 
   @override
+  State<_TeacherDashboardTab> createState() => _TeacherDashboardTabState();
+}
+
+class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
+  bool _isGeneratingCode = false;
+
+  // دالة توليد كود عشوائي جديد للمعلم
+  Future<void> _generateTeacherCode() async {
+    setState(() => _isGeneratingCode = true);
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rnd = Random();
+    final newCode = String.fromCharCodes(
+      Iterable.generate(6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))),
+    );
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).update({
+        'teacherCode': newCode,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تم توليد كود المعلم الجديد: $newCode 🎉'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ أثناء توليد الكود: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingCode = false);
+    }
+  }
+
+  void _copyCodeToClipboard(String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم نسخ كود المعلم إلى الحافظة 📋'), backgroundColor: TeacherColors.primary),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         children: [
+          // الهيدر العلوي
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -121,50 +169,151 @@ class _TeacherDashboardTab extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    IconButton(
+                      icon: const Icon(Icons.logout, color: Colors.white, size: 22),
+                      onPressed: () async => await AuthService().signOut(),
+                    ),
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.logout, color: Colors.white, size: 22),
-                          onPressed: () async => await AuthService().signOut(),
+                        const Text('يَــفـهَــم', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                          child: const Icon(Icons.school, color: Colors.white, size: 20),
                         ),
-                        if (user.teacherCode != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                            child: Text('كودك: ${user.teacherCode}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
                       ],
                     ),
-                    const Text('يَــفـهَــم', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Text('أهلاً بك يا أستاذ/ة ${user.name} 👋', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+
+                // زرار توليد/عرض كود المعلم في الهيدر
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
+                  builder: (context, snapshot) {
+                    final data = snapshot.data?.data() as Map<String, dynamic>?;
+                    final currentCode = data?['teacherCode'] ?? widget.user.teacherCode;
+
+                    if (currentCode == null || currentCode.toString().isEmpty) {
+                      return ElevatedButton.icon(
+                        onPressed: _isGeneratingCode ? null : _generateTeacherCode,
+                        icon: const Icon(Icons.vpn_key, size: 18, color: TeacherColors.primary),
+                        label: const Text('توليد كود المعلم الأن', style: TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      );
+                    }
+
+                    return InkWell(
+                      onTap: () => _copyCodeToClipboard(currentCode),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.copy, color: Colors.white, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              'كودك: $currentCode',
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+                Text('أهلاً بك يا أستاذ/ة ${widget.user.name} 👋', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatsRow(user.uid, onNavigateToTab),
+                _buildStatsRow(widget.user.uid, widget.onNavigateToTab),
                 const SizedBox(height: 24),
                 const Text('الوصول السريع', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
                 const SizedBox(height: 12),
+
+                // شبكة الوصول السريع
                 GridView.count(
                   crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.3,
+                  crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.25,
                   children: [
-                    _QuickTile(title: 'رفع محتوى', icon: Icons.cloud_upload_rounded, color: const Color(0xFF2563EB), onTap: onOpenUploadModal),
                     _QuickTile(
-                      title: 'اختبار جديد', icon: Icons.add_task_rounded, color: const Color(0xFF059669),
+                      title: 'رفع محتوى',
+                      icon: Icons.cloud_upload_rounded,
+                      color: const Color(0xFF2563EB),
+                      onTap: widget.onOpenUploadModal,
+                    ),
+                    _QuickTile(
+                      title: 'اختبار جديد',
+                      icon: Icons.add_task_rounded,
+                      color: const Color(0xFF059669),
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => QuizCreateScreen(user: user)));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => QuizCreateScreen(user: widget.user)));
                       },
                     ),
-                    _QuickTile(title: 'المحتوى المضاف', icon: Icons.folder_copy_rounded, color: const Color(0xFFD97706), onTap: () => onNavigateToTab(1)),
-                    _QuickTile(title: 'قائمة الطلاب', icon: Icons.people_alt_rounded, color: const Color(0xFF7C3AED), onTap: () => onNavigateToTab(3)),
+                    // زرار طلبات الانضمام المعلقة
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .where('linkedTeacherUid', isEqualTo: widget.user.uid)
+                          .where('status', isEqualTo: 'pending')
+                          .snapshots(),
+                      builder: (context, pendingSnap) {
+                        final pendingCount = pendingSnap.data?.docs.length ?? 0;
+                        return _QuickTile(
+                          title: 'طلبات الانضمام',
+                          icon: Icons.person_add_alt_1_rounded,
+                          color: const Color(0xFFDC2626),
+                          badgeCount: pendingCount > 0 ? '$pendingCount' : null,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => PendingApprovalsScreen(user: widget.user)),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    _QuickTile(
+                      title: 'توليد / نسخ الكود',
+                      icon: Icons.key_rounded,
+                      color: const Color(0xFFD97706),
+                      onTap: () {
+                        if (widget.user.teacherCode != null) {
+                          _copyCodeToClipboard(widget.user.teacherCode!);
+                        } else {
+                          _generateTeacherCode();
+                        }
+                      },
+                    ),
+                    _QuickTile(
+                      title: 'قائمة الطلاب',
+                      icon: Icons.people_alt_rounded,
+                      color: const Color(0xFF7C3AED),
+                      onTap: () => widget.onNavigateToTab(3),
+                    ),
+                    _QuickTile(
+                      title: 'المحتوى المضاف',
+                      icon: Icons.folder_copy_rounded,
+                      color: const Color(0xFF0284C7),
+                      onTap: () => widget.onNavigateToTab(1),
+                    ),
                   ],
                 ),
               ],
@@ -228,7 +377,6 @@ class _TeacherStudentsTab extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(ctx);
-              // إلغاء ربط الطالب بالمعلم
               await FirebaseFirestore.instance.collection('users').doc(studentId).update({
                 'linkedTeacherUid': FieldValue.delete(),
               });
@@ -531,15 +679,68 @@ class _StatCard extends StatelessWidget {
 }
 
 class _QuickTile extends StatelessWidget {
-  final String title; final IconData icon; final Color color; final VoidCallback onTap;
-  const _QuickTile({required this.title, required this.icon, required this.color, required this.onTap});
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final String? badgeCount;
+
+  const _QuickTile({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.badgeCount,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: color), Text(title)]),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+                      child: Icon(icon, color: color, size: 26),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
+                  ],
+                ),
+              ),
+              if (badgeCount != null)
+                Positioned(
+                  top: 0, right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: Text(badgeCount!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
