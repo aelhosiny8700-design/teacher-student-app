@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'quiz_create_screen.dart';
 import 'pending_approvals_screen.dart';
+import 'chat_hub_screen.dart';
 
 class TeacherColors {
   static const primary = Color(0xFF0062E6);
@@ -38,7 +39,7 @@ class _TeacherHomeState extends State<TeacherHome> {
       ),
       _UploadedContentTab(user: widget.user, onOpenUploadModal: () => _showAddContentModal(context)),
       _TeacherQuizzesTab(user: widget.user),
-      _TeacherStudentsTab(user: widget.user),
+      ChatHubScreen(user: widget.user),
       _TeacherProfileTab(user: widget.user),
     ];
 
@@ -71,7 +72,7 @@ class _TeacherHomeState extends State<TeacherHome> {
             BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
             BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: 'المحتوى'),
             BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), activeIcon: Icon(Icons.assignment), label: 'الاختبارات'),
-            BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), activeIcon: Icon(Icons.people_alt), label: 'الطلاب'),
+            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat_bubble), label: 'الرسائل'),
             BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'المزيد'),
           ],
         ),
@@ -90,7 +91,7 @@ class _TeacherHomeState extends State<TeacherHome> {
 }
 
 // ==========================================
-// 1. شاشة الرئيسية للمعلم
+// 1. شاشة الرئيسية للمعلم (Teacher Dashboard)
 // ==========================================
 class _TeacherDashboardTab extends StatefulWidget {
   final AppUser user;
@@ -110,7 +111,6 @@ class _TeacherDashboardTab extends StatefulWidget {
 class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
   bool _isGeneratingCode = false;
 
-  // دالة توليد كود عشوائي جديد للمعلم
   Future<void> _generateTeacherCode() async {
     setState(() => _isGeneratingCode = true);
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -152,7 +152,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // الهيدر العلوي
+          // الهيدر علوي
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -172,6 +172,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                     IconButton(
                       icon: const Icon(Icons.logout, color: Colors.white, size: 22),
                       onPressed: () async => await AuthService().signOut(),
+                      tooltip: 'تسجيل الخروج',
                     ),
                     Row(
                       children: [
@@ -188,7 +189,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                 ),
                 const SizedBox(height: 16),
 
-                // زرار توليد/عرض كود المعلم في الهيدر
+                // زرار كود المعلم
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance.collection('users').doc(widget.user.uid).snapshots(),
                   builder: (context, snapshot) {
@@ -199,7 +200,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       return ElevatedButton.icon(
                         onPressed: _isGeneratingCode ? null : _generateTeacherCode,
                         icon: const Icon(Icons.vpn_key, size: 18, color: TeacherColors.primary),
-                        label: const Text('توليد كود المعلم الأن', style: TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary)),
+                        label: const Text('توليد كود المعلم الآن', style: TextStyle(fontWeight: FontWeight.bold, color: TeacherColors.primary)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -248,7 +249,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                 const Text('الوصول السريع', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
                 const SizedBox(height: 12),
 
-                // شبكة الوصول السريع
+                // أزرار الوصول السريع
                 GridView.count(
                   crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.25,
@@ -267,7 +268,6 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => QuizCreateScreen(user: widget.user)));
                       },
                     ),
-                    // زرار طلبات الانضمام المعلقة
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('users')
@@ -291,22 +291,18 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
                       },
                     ),
                     _QuickTile(
-                      title: 'توليد / نسخ الكود',
-                      icon: Icons.key_rounded,
-                      color: const Color(0xFFD97706),
-                      onTap: () {
-                        if (widget.user.teacherCode != null) {
-                          _copyCodeToClipboard(widget.user.teacherCode!);
-                        } else {
-                          _generateTeacherCode();
-                        }
-                      },
-                    ),
-                    _QuickTile(
-                      title: 'قائمة الطلاب',
-                      icon: Icons.people_alt_rounded,
+                      title: 'الرسائل والواجبات',
+                      icon: Icons.chat_bubble_rounded,
                       color: const Color(0xFF7C3AED),
                       onTap: () => widget.onNavigateToTab(3),
+                    ),
+                    _QuickTile(
+                      title: 'إدارة الطلاب',
+                      icon: Icons.people_alt_rounded,
+                      color: const Color(0xFF059669),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => _TeacherStudentsScreen(user: widget.user)));
+                      },
                     ),
                     _QuickTile(
                       title: 'المحتوى المضاف',
@@ -333,18 +329,31 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
           stream: FirebaseFirestore.instance.collection('quizzes').where('teacherUid', isEqualTo: teacherUid).snapshots(),
           builder: (context, quizSnap) {
             final quizCount = quizSnap.data?.docs.length ?? 0;
-            return Row(
-              children: [
-                GestureDetector(
-                  onTap: () => onNavigateToTab(3),
-                  child: _StatCard(title: 'الطلاب', count: '$studentsCount', icon: Icons.people, color: const Color(0xFF2563EB)),
-                ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () => onNavigateToTab(2),
-                  child: _StatCard(title: 'الاختبارات', count: '$quizCount', icon: Icons.assignment, color: const Color(0xFF7C3AED)),
-                ),
-              ],
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('contents').where('teacherUid', isEqualTo: teacherUid).snapshots(),
+              builder: (context, contentSnap) {
+                final contentCount = contentSnap.data?.docs.length ?? 0;
+                return Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => _TeacherStudentsScreen(user: widget.user)));
+                      },
+                      child: _StatCard(title: 'الطلاب', count: '$studentsCount', icon: Icons.people, color: const Color(0xFF2563EB)),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => onNavigateToTab(1),
+                      child: _StatCard(title: 'المحتوى', count: '$contentCount', icon: Icons.folder, color: const Color(0xFFD97706)),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => onNavigateToTab(2),
+                      child: _StatCard(title: 'الاختبارات', count: '$quizCount', icon: Icons.assignment, color: const Color(0xFF7C3AED)),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -356,10 +365,10 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
 // ==========================================
 // 2. شاشة إدارة الطلاب وحذفهم
 // ==========================================
-class _TeacherStudentsTab extends StatelessWidget {
+class _TeacherStudentsScreen extends StatelessWidget {
   final AppUser user;
 
-  const _TeacherStudentsTab({required this.user});
+  const _TeacherStudentsScreen({required this.user});
 
   void _confirmDeleteStudent(BuildContext context, String studentId, String studentName) {
     showDialog(
@@ -367,7 +376,7 @@ class _TeacherStudentsTab extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('إزالة طالب', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('هل أنت أستاذ/ة متأكد من إزالة الطالب ($studentName) من مجموعتك؟'),
+        content: Text('هل أنت متأكد من إزالة الطالب ($studentName) من مجموعتك؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -414,6 +423,7 @@ class _TeacherStudentsTab extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        foregroundColor: TeacherColors.textDark,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -507,7 +517,7 @@ class _TeacherStudentsTab extends StatelessWidget {
 }
 
 // ==========================================
-// 3. باقي التبويبات والمكونات المساعدة
+// 3. تبويب إدارة الاختبارات للمعلم
 // ==========================================
 class _TeacherQuizzesTab extends StatelessWidget {
   final AppUser user;
@@ -538,7 +548,16 @@ class _TeacherQuizzesTab extends StatelessWidget {
           }
           final docs = snapshot.data?.docs ?? [];
           if (docs.isEmpty) {
-            return const Center(child: Text('لم تقم بنشر أي اختبارات حتى الآن'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment_outlined, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  const Text('لم تقم بنشر أي اختبارات حتى الآن', style: TextStyle(color: TeacherColors.textMuted)),
+                ],
+              ),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -571,88 +590,66 @@ class _TeacherQuizzesTab extends StatelessWidget {
   }
 }
 
-class _AddContentBottomSheet extends StatefulWidget {
-  final String teacherUid;
-  const _AddContentBottomSheet({required this.teacherUid});
-  @override
-  State<_AddContentBottomSheet> createState() => _AddContentBottomSheetState();
-}
-
-class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
-  final _titleController = TextEditingController();
-  final _descController = TextEditingController();
-  final _urlController = TextEditingController();
-  String? _selectedStage = 'الصف الأول الإعدادي';
-  String? _selectedType = 'مذكرة / ملف PDF';
-
-  final List<String> _stages = [
-    'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي',
-    'الصف الرابع الابتدائي', 'الصف الخامس الابتدائي', 'الصف السادس الابتدائي',
-    'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي',
-    'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي',
-  ];
-
-  Future<void> _uploadContent() async {
-    if (_titleController.text.trim().isEmpty) return;
-    await FirebaseFirestore.instance.collection('contents').add({
-      'title': _titleController.text.trim(),
-      'description': _descController.text.trim(),
-      'fileUrl': _urlController.text.trim(),
-      'stage': _selectedStage,
-      'type': _selectedType,
-      'teacherUid': widget.teacherUid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, top: 20, left: 20, right: 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('رفع محتوى جديد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _selectedStage,
-            items: _stages.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-            onChanged: (val) => setState(() => _selectedStage = val),
-          ),
-          TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'عنوان المحتوى')),
-          TextField(controller: _urlController, decoration: const InputDecoration(labelText: 'الرابط')),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: _uploadContent, child: const Text('حفظ')),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
+// ==========================================
+// 4. تبويب المحتوى المضاف
+// ==========================================
 class _UploadedContentTab extends StatelessWidget {
   final AppUser user;
   final VoidCallback onOpenUploadModal;
+
   const _UploadedContentTab({required this.user, required this.onOpenUploadModal});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('المحتوى المضاف')),
+      backgroundColor: TeacherColors.background,
+      appBar: AppBar(
+        title: const Text('المحتوى المضاف', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: onOpenUploadModal,
+        backgroundColor: TeacherColors.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('رفع محتوى', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('contents').where('teacherUid', isEqualTo: user.uid).snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: TeacherColors.primary));
+          }
           final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.folder_open, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  const Text('لم تقم برفع أي محتوى تعليمي حتى الآن', style: TextStyle(color: TeacherColors.textMuted)),
+                ],
+              ),
+            );
+          }
           return ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: docs.length,
             itemBuilder: (context, i) {
               final d = docs[i].data() as Map<String, dynamic>;
-              return ListTile(
-                title: Text(d['title'] ?? ''),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => FirebaseFirestore.instance.collection('contents').doc(docs[i].id).delete(),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                child: ListTile(
+                  leading: const Icon(Icons.insert_drive_file, color: TeacherColors.primary),
+                  title: Text(d['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('${d['stage'] ?? ''} • ${d['type'] ?? ''}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () => FirebaseFirestore.instance.collection('contents').doc(docs[i].id).delete(),
+                  ),
                 ),
               );
             },
@@ -663,16 +660,261 @@ class _UploadedContentTab extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 5. تبويب الملف الشخصي الكامل للمعلم
+// ==========================================
+class _TeacherProfileTab extends StatelessWidget {
+  final AppUser user;
+
+  const _TeacherProfileTab({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: TeacherColors.background,
+      appBar: AppBar(
+        title: const Text('الملف الشخصي للمعلم', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const CircleAvatar(
+              radius: 45,
+              backgroundColor: TeacherColors.primary,
+              child: Icon(Icons.person, size: 50, color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            Text(user.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
+            Text(user.email, style: const TextStyle(fontSize: 13, color: TeacherColors.textMuted)),
+            const SizedBox(height: 24),
+
+            _buildProfileTile(
+              Icons.vpn_key,
+              user.teacherCode != null ? 'كودك: ${user.teacherCode}' : 'كود المعلم غير مفعل',
+              () {
+                if (user.teacherCode != null) {
+                  Clipboard.setData(ClipboardData(text: user.teacherCode!));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم نسخ الكود للحافظة!')),
+                  );
+                }
+              },
+            ),
+            _buildProfileTile(Icons.info_outline, 'معلومات الحساب والتخصص', () {}),
+            _buildProfileTile(Icons.help_outline, 'الدعم الفني والمساعدة', () {}),
+            const SizedBox(height: 20),
+            _buildProfileTile(
+              Icons.logout,
+              'تسجيل الخروج',
+              () async => await AuthService().signOut(),
+              isDanger: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileTile(IconData icon, String title, VoidCallback onTap, {bool isDanger = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: isDanger ? Colors.red : TeacherColors.primary),
+        title: Text(title, style: TextStyle(color: isDanger ? Colors.red : TeacherColors.textDark, fontWeight: FontWeight.w600, fontSize: 14)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: isDanger ? Colors.red : TeacherColors.textMuted),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 6. نافذة رفع المحتوى مع جميع المراحل
+// ==========================================
+class _AddContentBottomSheet extends StatefulWidget {
+  final String teacherUid;
+
+  const _AddContentBottomSheet({required this.teacherUid});
+
+  @override
+  State<_AddContentBottomSheet> createState() => _AddContentBottomSheetState();
+}
+
+class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  final _urlController = TextEditingController();
+  String? _selectedStage = 'الصف الأول الإعدادي';
+  String? _selectedType = 'مذكرة / ملف PDF';
+  bool _isLoading = false;
+
+  final List<String> _stages = [
+    'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي',
+    'الصف الرابع الابتدائي', 'الصف الخامس الابتدائي', 'الصف السادس الابتدائي',
+    'الصف الأول الإعدادي', 'الصف الثاني الإعدادي', 'الصف الثالث الإعدادي',
+    'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي',
+  ];
+
+  final List<String> _types = [
+    'مذكرة / ملف PDF',
+    'فيديو شرح',
+    'ملخص دراسي',
+    'واجب منزلي',
+  ];
+
+  Future<void> _uploadContent() async {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('من فضلك أدخل عنوان المحتوى')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('contents').add({
+        'title': title,
+        'description': _descController.text.trim(),
+        'fileUrl': _urlController.text.trim(),
+        'stage': _selectedStage,
+        'type': _selectedType,
+        'teacherUid': widget.teacherUid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم رفع المحتوى بنجاح 🎉'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء الرفع: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, top: 20, left: 20, right: 20),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('رفع محتوى دراسي جديد 📚', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('الصف الدراسي', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _selectedStage,
+              decoration: _inputDecoration(),
+              items: _stages.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (val) => setState(() => _selectedStage = val),
+            ),
+            const SizedBox(height: 12),
+            const Text('نوع المحتوى', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _selectedType,
+              decoration: _inputDecoration(),
+              items: _types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+              onChanged: (val) => setState(() => _selectedType = val),
+            ),
+            const SizedBox(height: 12),
+            const Text('عنوان المحتوى', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            TextField(controller: _titleController, decoration: _inputDecoration(hint: 'مثال: شرح درس الذرة والمادة')),
+            const SizedBox(height: 12),
+            const Text('رابط الملف / الفيديو', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            TextField(controller: _urlController, decoration: _inputDecoration(hint: 'ضع رابط التحميل هنا')),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _uploadContent,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TeacherColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('رفع وحفظ المحتوى', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xFFF1F5F9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    );
+  }
+}
+
+// ==========================================
+// 7. العناصر المساعدة
+// ==========================================
 class _StatCard extends StatelessWidget {
-  final String title, count; final IconData icon; final Color color;
+  final String title, count;
+  final IconData icon;
+  final Color color;
+
   const _StatCard({required this.title, required this.count, required this.icon, required this.color});
+
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-        child: Column(children: [Text(count, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), Text(title)]),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 6),
+            Text(count, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: TeacherColors.textDark)),
+            Text(title, style: const TextStyle(fontSize: 11, color: TeacherColors.textMuted)),
+          ],
+        ),
       ),
     );
   }
@@ -743,14 +985,5 @@ class _QuickTile extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _TeacherProfileTab extends StatelessWidget {
-  final AppUser user;
-  const _TeacherProfileTab({required this.user});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(body: Center(child: ElevatedButton(onPressed: () => AuthService().signOut(), child: const Text('تسجيل الخروج'))));
   }
 }
