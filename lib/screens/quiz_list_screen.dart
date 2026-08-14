@@ -15,14 +15,15 @@ class QuizListScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
       builder: (context, userSnapshot) {
         String? teacherUid = user.linkedTeacherUid;
-        String? studentStage = user.stage;
+        // دعم قراءة المرحلة سواء كانت مخزنة كـ grade أو stage
+        String? studentGrade = user.grade ?? user.stage;
         String? status = user.status;
 
         if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
           final rawUser = userSnapshot.data!.data();
           if (rawUser is Map) {
             teacherUid = rawUser['linkedTeacherUid']?.toString() ?? teacherUid;
-            studentStage = rawUser['stage']?.toString() ?? studentStage;
+            studentGrade = rawUser['grade']?.toString() ?? rawUser['stage']?.toString() ?? studentGrade;
             status = rawUser['status']?.toString() ?? status;
           }
         }
@@ -33,20 +34,20 @@ class QuizListScreen extends StatelessWidget {
             title: Column(
               children: [
                 const Text('الاختبارات والتقييمات 📝', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(studentStage ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+                Text(studentGrade ?? 'الصف الدراسي', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
               ],
             ),
             backgroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
           ),
-          body: _buildQuizzesBody(context, teacherUid, studentStage, status),
+          body: _buildQuizzesBody(context, teacherUid, studentGrade, status),
         );
       },
     );
   }
 
-  Widget _buildQuizzesBody(BuildContext context, String? teacherUid, String? studentStage, String? status) {
+  Widget _buildQuizzesBody(BuildContext context, String? teacherUid, String? studentGrade, String? status) {
     if (teacherUid == null || teacherUid.isEmpty) {
       return const Center(
         child: Padding(
@@ -85,14 +86,14 @@ class QuizListScreen extends StatelessWidget {
 
         final quizDocs = quizSnapshot.data?.docs ?? [];
 
-        // تصفية الاختبارات لتناسب مرحلة الطالب
+        // تصفية الاختبارات لتناسب مرحلة الطالب (بفحص grade أو stage في جدول الاختبارات)
         final filteredQuizzes = quizDocs.where((doc) {
           final raw = doc.data();
           if (raw is! Map) return false;
           final data = raw.cast<String, dynamic>();
 
-          final quizStage = data['stage']?.toString();
-          return (studentStage == null || studentStage.isEmpty) || (quizStage == studentStage);
+          final quizGrade = data['grade']?.toString() ?? data['stage']?.toString();
+          return (studentGrade == null || studentGrade.isEmpty) || (quizGrade == studentGrade);
         }).toList();
 
         if (filteredQuizzes.isEmpty) {
@@ -103,7 +104,7 @@ class QuizListScreen extends StatelessWidget {
                 Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey.shade400),
                 const SizedBox(height: 12),
                 Text(
-                  'لا توجد اختبارات مضافة لـ (${studentStage ?? 'صفك'}) حالياً',
+                  'لا توجد اختبارات مضافة لـ (${studentGrade ?? 'صفك'}) حالياً',
                   style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                 ),
               ],
