@@ -895,6 +895,17 @@ class _TeacherProfileTab extends StatelessWidget {
                 );
               },
             ),
+            // زر سلة المحذوفات المضاف حديثاً
+            _buildProfileTile(
+              Icons.delete_outline,
+              'سلة المحذوفات (الطلاب المؤرشفين)',
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => _ArchivedStudentsScreen(user: user)),
+                );
+              },
+            ),
             _buildProfileTile(Icons.info_outline, 'معلومات الحساب والتخصص', () {}),
             _buildProfileTile(Icons.help_outline, 'الدعم الفني والمساعدة', () {}),
             const SizedBox(height: 20),
@@ -1333,6 +1344,129 @@ class _QuickTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 8. شاشة سلة المحذوفات (الطلاب المؤرشفين)
+// ==========================================
+class _ArchivedStudentsScreen extends StatelessWidget {
+  final AppUser user;
+
+  const _ArchivedStudentsScreen({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: TeacherColors.background,
+      appBar: AppBar(
+        title: const Text('سلة المحذوفات (الأرشيف)', style: TextStyle(color: TeacherColors.textDark, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        foregroundColor: TeacherColors.textDark,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('archived_students').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: TeacherColors.primary));
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.delete_sweep_outlined, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  const Text('سلة المحذوفات فارغة تماماً', style: TextStyle(color: TeacherColors.textMuted)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final raw = doc.data();
+              final Map<String, dynamic> data = (raw is Map) ? raw.cast<String, dynamic>() : {};
+              final name = data['name']?.toString() ?? 'طالب بدون اسم';
+              final stage = data['stage']?.toString() ?? 'لم يحدد الصف';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.red.withOpacity(0.12),
+                      child: const Icon(Icons.person_off, color: Colors.red, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: TeacherColors.textDark)),
+                          const SizedBox(height: 4),
+                          Text(stage, style: const TextStyle(fontSize: 12, color: TeacherColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.restore, color: Colors.green),
+                      tooltip: 'استعادة الطالب',
+                      onPressed: () async {
+                        await FirebaseFirestore.instance.collection('users').doc(doc.id).set({
+                          ...data,
+                          'linkedTeacherUid': user.uid,
+                        });
+                        await FirebaseFirestore.instance.collection('archived_students').doc(doc.id).delete();
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('تم استعادة الطالب بنجاح 🎉'), backgroundColor: Colors.green),
+                          );
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_forever, color: Colors.red),
+                      tooltip: 'حذف نهائي',
+                      onPressed: () async {
+                        await FirebaseFirestore.instance.collection('archived_students').doc(doc.id).delete();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('تم حذف الطالب نهائياً')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
