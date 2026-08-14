@@ -30,6 +30,136 @@ class _StudentHomeState extends State<StudentHome> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // التحقق فور دخول الطالب عما إذا كان غير مرتبط بمعلم
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTeacherLink(context, widget.user.uid);
+    });
+  }
+
+  Future<void> _checkTeacherLink(BuildContext context, String studentUid) async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(studentUid).get();
+      if (userDoc.exists) {
+        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+        // إذا كان الحقل فارغاً أو غير موجود
+        if (data['linkedTeacherUid'] == null || data['linkedTeacherUid'].toString().isEmpty) {
+          if (context.mounted) {
+            _showEnterTeacherCodeDialog(context, studentUid);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking teacher link: $e');
+    }
+  }
+
+  void _showEnterTeacherCodeDialog(BuildContext context, String studentUid) {
+    final codeController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // لا يمكن إغلاقه إلا بربط المعلم
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('ربط الحساب بمعلم', style: TextStyle(fontWeight: FontWeight.bold, color: NewUiColors.textDark)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'حسابك غير مرتبط بأي معلم حالياً. من فضلك أدخل كود المعلم للانضمام لمجموعته ومتابعة دروسك:',
+                style: TextStyle(fontSize: 13, color: NewUiColors.textMuted, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: codeController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'أدخل كود المعلم (مثال: 8KX5F5)',
+                  filled: true,
+                  fillColor: const Color(0xFFF1F5F9),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              height: 45,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: NewUiColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: isSubmitting ? null : () async {
+                  String enteredCode = codeController.text.trim().toUpperCase();
+                  if (enteredCode.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('من فضلك ادخل كود المعلم')),
+                    );
+                    return;
+                  }
+
+                  setDialogState(() => isSubmitting = true);
+
+                  try {
+                    var teacherQuery = await FirebaseFirestore.instance
+                        .collection('users')
+                        .where('teacherCode', isEqualTo: enteredCode)
+                        .get();
+
+                    if (teacherQuery.docs.isNotEmpty) {
+                      String teacherUid = teacherQuery.docs.first.id;
+
+                      await FirebaseFirestore.instance.collection('users').doc(studentUid).update({
+                        'linkedTeacherUid': teacherUid,
+                        'status': 'pending',
+                      });
+
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم ربط الحساب وإرسال الطلب للمعلم بنجاح 🎉'), backgroundColor: Colors.green),
+                        );
+                        setState(() {}); // لتحديث الواجهة إن أمكن
+                      }
+                    } else {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('كود المعلم غير صحيح! تأكد من الكود وحاول مجدداً'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  } finally {
+                    if (ctx.mounted) {
+                      setDialogState(() => isSubmitting = false);
+                    }
+                  }
+                },
+                child: isSubmitting
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('تأكيد وربط الحساب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final pages = [
       _HomeDashboardTab(
@@ -41,7 +171,10 @@ class _StudentHomeState extends State<StudentHome> {
       ContentListScreen(user: widget.user),
       QuizListScreen(user: widget.user),
       ChatHubScreen(user: widget.user),
-      _ProfileTab(user: widget.user),
+      _ProfileTab(
+        user: widget.user,
+        onRecheckCode: () => _checkTeacherLink(context, widget.user.uid),
+      ),
     ];
 
     return Scaffold(
@@ -539,8 +672,9 @@ class _RecentResultsList extends StatelessWidget {
 
 class _ProfileTab extends StatelessWidget {
   final AppUser user;
+  final VoidCallback onRecheckCode;
 
-  const _ProfileTab({required this.user});
+  const _ProfileTab({required this.user, required this.onRecheckCode});
 
   @override
   Widget build(BuildContext context) {
@@ -573,6 +707,7 @@ class _ProfileTab extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             _buildProfileTile(Icons.info_outline, 'معلومات الحساب', () {}),
+            _buildProfileTile(Icons.vpn_key_outlined, 'إدخال أو تغيير كود المعلم', onRecheckCode),
             _buildProfileTile(Icons.lock_outline, 'تغيير كلمة المرور', () {}),
             _buildProfileTile(Icons.help_outline, 'الدعم والمساعدة', () {}),
             const SizedBox(height: 20),
