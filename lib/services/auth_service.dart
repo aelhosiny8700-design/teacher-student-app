@@ -88,7 +88,7 @@ class AuthService {
     }
   }
 
-  // تسجيل الدخول (يدعم الاستدعاء المباشر)
+  // تسجيل الدخول
   Future<String?> signIn(String email, [String? password]) async {
     final pass = password ?? '';
     try {
@@ -124,7 +124,7 @@ class AuthService {
     }
   }
 
-  // دالة إعادة تعيين كلمة السر (نسيت كلمة السر)
+  // دالة إعادة تعيين كلمة السر
   Future<String?> resetPassword(String email) async {
     return sendPasswordResetEmail(email);
   }
