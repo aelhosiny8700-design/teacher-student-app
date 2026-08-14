@@ -199,4 +199,28 @@ class FirestoreService {
       return [AppUser.fromMap(doc.data()!)];
     });
   }
+   // دالة أرشفة الطالب (تضاف في نهاية الملف)
+  Future<void> archiveStudent(String studentId, Map<String, dynamic> studentData) async {
+    try {
+      await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set(studentData);
+      await FirebaseFirestore.instance.collection('students').doc(studentId).delete();
+    } catch (e) {
+      print("Error archiving: $e");
+    }
+  }
+
+  // دالة استعادة الطالب بكود جديد (تضاف بجانبها في نهاية الملف)
+  Future<void> restoreStudent(String studentId, String newCode) async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('archived_students').doc(studentId).get();
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['access_code'] = newCode; 
+        await FirebaseFirestore.instance.collection('students').doc(studentId).set(data);
+        await FirebaseFirestore.instance.collection('archived_students').doc(studentId).delete();
+      }
+    } catch (e) {
+      print("Error restoring: $e");
+    }
+  }
 }
