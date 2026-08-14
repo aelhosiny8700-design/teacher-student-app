@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
 
@@ -29,10 +31,42 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     final error = await _authService.signIn(email, password);
+
     if (mounted) {
-      setState(() => _isLoading = false);
       if (error != null) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      } else {
+        // التحقق مما إذا كان سجل الطالب ممسوحاً من Firestore لإعادة إنشائه تلقائياً
+        try {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+
+            if (!userDoc.exists) {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(currentUser.uid)
+                  .set({
+                'uid': currentUser.uid,
+                'email': currentUser.email ?? email,
+                'name': currentUser.displayName ?? 'طالب',
+                'role': 'student',
+                'linkedTeacherUid': '', // فارغ ليتم توجيهه لإدخال كود المعلم
+                'stage': '',            // فارغ ليختار المرحلة الدراسية من جديد
+                'status': 'active',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        } catch (_) {
+          // استمرار التنفيذ بسلاسة
+        }
+
+        setState(() => _isLoading = false);
       }
     }
   }
