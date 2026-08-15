@@ -153,9 +153,11 @@ class AuthService {
       final doc = await _db.collection('users').doc(uid).get();
       if (doc.exists && doc.data() != null) {
         return AppUser.fromMap(doc.data()!);
+      } else {
+        print('⚠️ getUserData: Document not found for uid: $uid');
       }
     } catch (e) {
-      // ignore
+      print('❌ getUserData error: $e');
     }
     return null;
   }
