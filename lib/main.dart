@@ -72,7 +72,38 @@ class AuthGate extends StatelessWidget {
 
             final appUser = userSnapshot.data;
             if (appUser == null) {
-              return const LoginScreen();
+              return Scaffold(
+                appBar: AppBar(title: const Text('حصل خطأ')),
+                body: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'تعذر تحميل بيانات المستخدم',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      SelectableText(
+                        AuthService.lastError ?? 'لا توجد تفاصيل إضافية',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 13, color: Colors.red),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                        },
+                        child: const Text('تسجيل الخروج والمحاولة تاني'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
 
             return appUser.isTeacher
