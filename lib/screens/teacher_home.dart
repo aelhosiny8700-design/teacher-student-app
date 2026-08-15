@@ -386,7 +386,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
           builder: (context, quizSnap) {
             final quizCount = (quizSnap.hasData && quizSnap.data != null) ? quizSnap.data!.docs.length : 0;
             return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('contents').where('teacherUid', isEqualTo: teacherUid).snapshots(),
+              stream: FirebaseFirestore.instance.collection('content').where('teacherUid', isEqualTo: teacherUid).snapshots(),
               builder: (context, contentSnap) {
                 final contentCount = (contentSnap.hasData && contentSnap.data != null) ? contentSnap.data!.docs.length : 0;
                 return Row(
@@ -735,7 +735,7 @@ class _UploadedContentTab extends StatelessWidget {
         label: const Text('رفع محتوى', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('contents').where('teacherUid', isEqualTo: user.uid).snapshots(),
+        stream: FirebaseFirestore.instance.collection('content').where('teacherUid', isEqualTo: user.uid).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: TeacherColors.primary));
@@ -781,7 +781,7 @@ class _UploadedContentTab extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.red),
                         tooltip: 'حذف',
-                        onPressed: () => FirebaseFirestore.instance.collection('contents').doc(doc.id).delete(),
+                        onPressed: () => FirebaseFirestore.instance.collection('content').doc(doc.id).delete(),
                       ),
                     ],
                   ),
@@ -1080,7 +1080,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseFirestore.instance.collection('contents').add({
+      await FirebaseFirestore.instance.collection('content').add({
         'title': title,
         'description': _descController.text.trim(),
         'fileUrl': fileUrl,
