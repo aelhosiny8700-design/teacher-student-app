@@ -1,4 +1,4 @@
-import 'dart:convert';
+Import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
@@ -386,7 +386,7 @@ class _TeacherDashboardTabState extends State<_TeacherDashboardTab> {
           builder: (context, quizSnap) {
             final quizCount = (quizSnap.hasData && quizSnap.data != null) ? quizSnap.data!.docs.length : 0;
             return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('content').where('teacherUid', isEqualTo: teacherUid).snapshots(),
+              stream: FirebaseFirestore.instance.collection('content').where('teacherId', isEqualTo: teacherUid).snapshots(),
               builder: (context, contentSnap) {
                 final contentCount = (contentSnap.hasData && contentSnap.data != null) ? contentSnap.data!.docs.length : 0;
                 return Row(
@@ -453,7 +453,10 @@ class _TeacherStudentsScreen extends StatelessWidget {
               if (studentDoc.exists) {
                 Map<String, dynamic> studentData = studentDoc.data() as Map<String, dynamic>;
 
-                await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set(studentData);
+                await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set({
+                  ...studentData,
+                  'linkedTeacherUid': user.uid,
+                });
 
                 await FirebaseFirestore.instance.collection('users').doc(studentId).update({
                   'linkedTeacherUid': FieldValue.delete(),
@@ -735,7 +738,7 @@ class _UploadedContentTab extends StatelessWidget {
         label: const Text('رفع محتوى', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('content').where('teacherUid', isEqualTo: user.uid).snapshots(),
+        stream: FirebaseFirestore.instance.collection('content').where('teacherId', isEqualTo: user.uid).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: TeacherColors.primary));
@@ -1087,7 +1090,7 @@ class _AddContentBottomSheetState extends State<_AddContentBottomSheet> {
         'stage': _selectedStage,
         'type': _selectedType,
         'uploadSource': _uploadSource,
-        'teacherUid': widget.teacherUid,
+        'teacherId': widget.teacherUid,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -1369,7 +1372,10 @@ class _ArchivedStudentsScreen extends StatelessWidget {
         foregroundColor: TeacherColors.textDark,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('archived_students').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('archived_students')
+            .where('linkedTeacherUid', isEqualTo: user.uid)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: TeacherColors.primary));
@@ -1453,7 +1459,6 @@ class _ArchivedStudentsScreen extends StatelessWidget {
                       icon: const Icon(Icons.delete_forever, color: Colors.red),
                       tooltip: 'حذف نهائي',
                       onPressed: () async {
-                        // حذف نهائي من الأرشيف ومن جدول users أيضاً
                         await FirebaseFirestore.instance.collection('archived_students').doc(doc.id).delete();
                         await FirebaseFirestore.instance.collection('users').doc(doc.id).delete();
                         if (context.mounted) {
