@@ -155,7 +155,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
-                .collection('contents')
+                .collection('content')
                 .where('teacherId', isEqualTo: teacherUid)
                 .snapshots(),
             builder: (context, snapshot) {
