@@ -9,6 +9,8 @@ class AuthService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirestoreService _firestoreService = FirestoreService();
 
+  static String? lastError;
+
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
@@ -102,7 +104,7 @@ class AuthService {
 
       if (userData == null) {
         await _auth.signOut();
-        return 'تعذر تحميل بيانات المستخدم';
+        return 'تعذر تحميل بيانات المستخدم${lastError != null ? "\n\nتفاصيل: $lastError" : ""}';
       }
 
       if (userData.role == 'student') {
@@ -152,12 +154,13 @@ class AuthService {
     try {
       final doc = await _db.collection('users').doc(uid).get();
       if (doc.exists && doc.data() != null) {
+        lastError = null;
         return AppUser.fromMap(doc.data()!);
       } else {
-        print('⚠️ getUserData: Document not found for uid: $uid');
+        lastError = 'المستند غير موجود في Firestore لـ uid: $uid';
       }
     } catch (e) {
-      print('❌ getUserData error: $e');
+      lastError = e.toString();
     }
     return null;
   }
