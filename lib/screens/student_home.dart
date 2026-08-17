@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:badges/badges.dart' as badges;
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'content_list_screen.dart';
@@ -32,7 +33,6 @@ class _StudentHomeState extends State<StudentHome> {
   @override
   void initState() {
     super.initState();
-    // التحقق فور دخول الطالب عما إذا كان غير مرتبط بمعلم أو بلا مرحلة دراسية
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkTeacherAndGradeLink(context, widget.user.uid);
     });
@@ -48,7 +48,6 @@ class _StudentHomeState extends State<StudentHome> {
         bool isGradeMissing = (data['grade'] == null || data['grade'].toString().isEmpty) &&
                               (data['stage'] == null || data['stage'].toString().isEmpty);
 
-        // إذا كان أحدهما ناقصاً، نعرض نافذة الإكمال الإجبارية
         if (isTeacherMissing || isGradeMissing) {
           if (context.mounted) {
             _showEnterTeacherCodeDialog(context, studentUid);
@@ -65,7 +64,6 @@ class _StudentHomeState extends State<StudentHome> {
     String? selectedGrade;
     bool isSubmitting = false;
 
-    // قائمة الـ 12 مرحلة دراسية بالكامل
     final List<String> educationalStages = [
       'الصف الأول الابتدائي',
       'الصف الثاني الابتدائي',
@@ -83,7 +81,7 @@ class _StudentHomeState extends State<StudentHome> {
 
     showDialog(
       context: context,
-      barrierDismissible: false, // لا يمكن إغلاقه إلا بإدخال الكود والمرحلة
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -98,8 +96,6 @@ class _StudentHomeState extends State<StudentHome> {
                   style: TextStyle(fontSize: 13, color: NewUiColors.textMuted, height: 1.4),
                 ),
                 const SizedBox(height: 16),
-                
-                // حقل كود المعلم
                 TextField(
                   controller: codeController,
                   textCapitalization: TextCapitalization.characters,
@@ -112,8 +108,6 @@ class _StudentHomeState extends State<StudentHome> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // قائمة منسدلة للمرحلة الدراسية
                 DropdownButtonFormField<String>(
                   value: selectedGrade,
                   hint: const Text('اختر المرحلة الدراسية', style: TextStyle(fontSize: 13)),
@@ -175,7 +169,6 @@ class _StudentHomeState extends State<StudentHome> {
                     if (teacherQuery.docs.isNotEmpty) {
                       String teacherUid = teacherQuery.docs.first.id;
 
-                      // تحديث كود المعلم والمرحلة الدراسية في قاعدة البيانات (في الحقلين لضمان التوافق مع المعلم)
                       await FirebaseFirestore.instance.collection('users').doc(studentUid).update({
                         'linkedTeacherUid': teacherUid,
                         'grade': selectedGrade,
@@ -382,9 +375,29 @@ class _HeaderSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
-                onPressed: () {},
+              // 🔴 هنا تم إضافة زر الجرس مع عداد الإشعارات الحمراء (Badge)
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('content')
+                    .where('stage', isEqualTo: user.stage)
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  int unreadCount = snapshot.data?.docs.length ?? 0;
+
+                  return badges.Badge(
+                    badgeContent: Text(
+                      '$unreadCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                    showBadge: unreadCount > 0,
+                    badgeStyle: const badges.BadgeStyle(badgeColor: Colors.red),
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
+                      onPressed: () {},
+                    ),
+                  );
+                },
               ),
               Row(
                 children: [
