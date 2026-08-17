@@ -90,7 +90,9 @@ class PendingApprovalsScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => service.approveStudent(student.uid),
+                            onPressed: () async {
+                              await service.approveStudent(teacher.uid, student.uid);
+                            },
                             icon: const Icon(Icons.check, size: 18),
                             label: const Text('قبول'),
                             style: ElevatedButton.styleFrom(
@@ -102,7 +104,9 @@ class PendingApprovalsScreen extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => service.rejectStudent(student.uid),
+                            onPressed: () async {
+                              await service.rejectStudent(student.uid);
+                            },
                             icon: const Icon(Icons.close, size: 18),
                             label: const Text('رفض'),
                             style: OutlinedButton.styleFrom(
