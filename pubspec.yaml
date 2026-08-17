@@ -24,11 +24,14 @@ dependencies:
   cached_network_image: ^3.3.0
   uuid: ^4.2.2
 
-  # Uploads & Files
+  # Uploads, Files & Sharing
   http: ^1.2.2
   file_picker: ^8.1.6
   image_picker: ^1.0.5
   url_launcher: ^6.3.0
+  screenshot: ^3.0.0
+  path_provider: ^2.1.2
+  share_plus: ^7.2.1
 
 dev_dependencies:
   flutter_test:
