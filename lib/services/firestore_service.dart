@@ -76,7 +76,15 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => AppUser.fromMap(doc.data())).toList());
   }
 
-  Future<void> approveStudent(String studentUid) async {
+  Future<void> approveStudent(String teacherUid, String studentUid) async {
+    // 1. إنشاء سجل الربط في teacher_students لتمكين الرسائل والمحادثات
+    await _db.collection('teacher_students').add({
+      'teacherUid': teacherUid,
+      'studentUid': studentUid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. تحديث حالة الطالب إلى approved ليختفي من المعلقين ويظهر في المقبولين
     await _db.collection('users').doc(studentUid).update({'status': 'approved'});
   }
 
@@ -199,7 +207,7 @@ class FirestoreService {
       return [AppUser.fromMap(doc.data()!)];
     });
   }
-   // دالة أرشفة الطالب (تضاف في نهاية الملف)
+
   Future<void> archiveStudent(String studentId, Map<String, dynamic> studentData) async {
     try {
       await FirebaseFirestore.instance.collection('archived_students').doc(studentId).set(studentData);
@@ -209,7 +217,6 @@ class FirestoreService {
     }
   }
 
-  // دالة استعادة الطالب بكود جديد (تضاف بجانبها في نهاية الملف)
   Future<void> restoreStudent(String studentId, String newCode) async {
     try {
       DocumentSnapshot doc = await FirebaseFirestore.instance.collection('archived_students').doc(studentId).get();
