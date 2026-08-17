@@ -58,6 +58,133 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
     }
   }
 
+  // 🌟 دالة عرض شهادة التقدير المبهرة والفاخرة
+  void _showCertificateDialog(String studentName, String quizTitle, String scoreText) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 600),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 5), // إطار ذهبي فاخر
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // أيقونة التتويج الذهبية البراقة
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37).withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.workspace_premium, size: 54, color: Color(0xFFD4AF37)),
+                ),
+                const SizedBox(height: 12),
+
+                // اسم المنصة الخاصة
+                const Text(
+                  "منصة يَفهم التعليمية",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 1.2),
+                ),
+                const SizedBox(height: 4),
+                
+                // العنوان الرئيسي للشهادة
+                const Text(
+                  "شهادة تقدير وتفوق", 
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))
+                ),
+                
+                const SizedBox(height: 12),
+                const Divider(color: Color(0xFFD4AF37), thickness: 1.5, indent: 40, endIndent: 40),
+                const SizedBox(height: 12),
+
+                const Text(
+                  "تُمنح هذه الشهادة بكل فخر واعتزاز للطالب(ة) المتميز(ة):", 
+                  style: TextStyle(fontSize: 14, color: Color(0xFF475569)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // صندوق اسم الطالب المبهر
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0062E6).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF0062E6).withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    studentName, 
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0062E6)),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                Text(
+                  "توقيعاً على تموقه وتفوقه الساطع بحصوله على درجة ($scoreText)\nفي اختبار: ($quizTitle)", 
+                  style: const TextStyle(fontSize: 15, color: Color(0xFF334155), height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // التوقيع وزر الإغلاق
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("إشراف وإعداد", style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        const SizedBox(height: 2),
+                        const Text(
+                          "مستر / أحمد فكري", 
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        ),
+                        const Text("مدرس العلوم والفيزياء", style: TextStyle(fontSize: 11, color: Color(0xFF0062E6))),
+                      ],
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0062E6),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("إغلاق الشهادة", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,18 +357,37 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                                   Text(quizTitle, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF475569))),
                                 ],
                               ),
-                              if (parentPhone.isNotEmpty)
-                                ElevatedButton.icon(
-                                  onPressed: () => _openWhatsApp(parentPhone, studentName, quizTitle, score, maxScore),
-                                  icon: const Icon(Icons.chat, size: 16, color: Colors.white),
-                                  label: const Text('مراسلة ولي الأمر', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF25D366),
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  ),
-                                ),
+                              Row(
+                                children: [
+                                  // زر شهادة التقدير الفاخر يظهر فقط إذا كانت نسبة الطالب 85% أو أكثر
+                                  if (percentage >= 85) ...[
+                                    ElevatedButton.icon(
+                                      onPressed: () => _showCertificateDialog(studentName, quizTitle, '$score/$maxScore'),
+                                      icon: const Icon(Icons.workspace_premium, size: 16, color: Colors.white),
+                                      label: const Text('شهادة تقدير', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFD4AF37), // لون ذهبي فخم للزر
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  if (parentPhone.isNotEmpty)
+                                    ElevatedButton.icon(
+                                      onPressed: () => _openWhatsApp(parentPhone, studentName, quizTitle, score, maxScore),
+                                      icon: const Icon(Icons.chat, size: 16, color: Colors.white),
+                                      label: const Text('مراسلة ولي الأمر', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF25D366),
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ],
