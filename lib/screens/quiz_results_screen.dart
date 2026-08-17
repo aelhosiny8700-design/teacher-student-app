@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/user_model.dart';
 
@@ -14,6 +18,7 @@ class QuizResultsScreen extends StatefulWidget {
 
 class _QuizResultsScreenState extends State<QuizResultsScreen> {
   String _selectedStageFilter = 'الكل';
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   final List<String> _stages = [
     'الكل',
@@ -58,124 +63,170 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
     }
   }
 
-  // 🌟 دالة عرض شهادة التقدير المبهرة والفاخرة
-  void _showCertificateDialog(String studentName, String quizTitle, String scoreText) {
+  // التقاط الشهادة كصورة ومشاركتها عبر الواتساب أو التطبيقات الأخرى
+  void _shareCertificateAsImage(String studentName, String quizTitle, int score, int maxScore) async {
+    try {
+      // التقاط الويدجت كصورة بايتات
+      final imageBytes = await _screenshotController.capture();
+      if (imageBytes == null) return;
+
+      // حفظها في مسار مؤقت على الجهاز
+      final directory = await getTemporaryDirectory();
+      final imagePath = await File('${directory.path}/certificate_${DateTime.now().millisecondsSinceEpoch}.png').create();
+      await imagePath.writeAsBytes(imageBytes);
+
+      final double percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+
+      // مشاركة الصورة مع رسالة نصية ترحيبية
+      await Share.shareXFiles(
+        [XFile(imagePath.path)],
+        text: 'السلام عليكم، ولي أمر الطالب/ة ($studentName) 🌟\n\n'
+            'يسر منصة يَفهم التعليمية إعلامكم بحصول ابنكم/ابنتكم على شهادة تقدير وتفوق لتفوقه في اختبار: $quizTitle\n'
+            'الدرجة الحاصل عليها: $score من $maxScore بنسبة (${percentage.toStringAsFixed(0)}%)\n\n'
+            'مستر / أحمد فكري (مدرس العلوم والفيزياء)',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء مشاركة الشهادة: $e')),
+        );
+      }
+    }
+  }
+
+  // دالة عرض شهادة التقدير المبهرة مع إمكانية التقاطها كصورة
+  void _showCertificateDialog(String studentName, String quizTitle, int score, int maxScore) {
+    final double percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+    
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 600),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFD4AF37), width: 5), // إطار ذهبي فاخر
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // أيقونة التتويج الذهبية البراقة
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD4AF37).withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.workspace_premium, size: 54, color: Color(0xFFD4AF37)),
-                ),
-                const SizedBox(height: 12),
-
-                // اسم المنصة الخاصة
-                const Text(
-                  "منصة يَفهم التعليمية",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 1.2),
-                ),
-                const SizedBox(height: 4),
-                
-                // العنوان الرئيسي للشهادة
-                const Text(
-                  "شهادة تقدير وتفوق", 
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))
-                ),
-                
-                const SizedBox(height: 12),
-                const Divider(color: Color(0xFFD4AF37), thickness: 1.5, indent: 40, endIndent: 40),
-                const SizedBox(height: 12),
-
-                const Text(
-                  "تُمنح هذه الشهادة بكل فخر واعتزاز للطالب(ة) المتميز(ة):", 
-                  style: TextStyle(fontSize: 14, color: Color(0xFF475569)),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-
-                // صندوق اسم الطالب المبهر
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0062E6).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF0062E6).withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    studentName, 
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0062E6)),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                Text(
-                  "توقيعاً على تموقه وتفوقه الساطع بحصوله على درجة ($scoreText)\nفي اختبار: ($quizTitle)", 
-                  style: const TextStyle(fontSize: 15, color: Color(0xFF334155), height: 1.5),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-
-                // التوقيع وزر الإغلاق
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("إشراف وإعداد", style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                        const SizedBox(height: 2),
-                        const Text(
-                          "مستر / أحمد فكري", 
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                // تغليف تصميم الشهادة بـ ScreenshotController لالتقاطها بدقة
+                Screenshot(
+                  controller: _screenshotController,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFD4AF37), width: 5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
-                        const Text("مدرس العلوم والفيزياء", style: TextStyle(fontSize: 11, color: Color(0xFF0062E6))),
                       ],
                     ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0062E6),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("إغلاق الشهادة", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD4AF37).withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.workspace_premium, size: 54, color: Color(0xFFD4AF37)),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          "منصة يَفهم التعليمية",
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 1.2),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          "شهادة تقدير وتفوق", 
+                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(color: Color(0xFFD4AF37), thickness: 1.5, indent: 40, endIndent: 40),
+                        const SizedBox(height: 12),
+                        const Text(
+                          "تُمنح هذه الشهادة بكل فخر واعتزاز للطالب(ة) المتميز(ة):", 
+                          style: TextStyle(fontSize: 14, color: Color(0xFF475569)),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0062E6).withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF0062E6).withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            studentName, 
+                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0062E6)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          "توقيعاً على تميزه وتفوقه الساطع بحصوله على درجة ($score/$maxScore) بنسبة (${percentage.toStringAsFixed(0)}%)\nفي اختبار: ($quizTitle)", 
+                          style: const TextStyle(fontSize: 15, color: Color(0xFF334155), height: 1.5),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("إشراف وإعداد", style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  "مستر / أحمد فكري", 
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                ),
+                                const Text("مدرس العلوم والفيزياء", style: TextStyle(fontSize: 11, color: Color(0xFF0062E6))),
+                              ],
+                            ),
+                            const Icon(Icons.verified, color: Color(0xFF25D366), size: 36),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // زر مشاركة صورة الشهادة
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      _shareCertificateAsImage(studentName, quizTitle, score, maxScore);
+                    },
+                    icon: const Icon(Icons.share, color: Colors.white, size: 20),
+                    label: const Text('مشاركتها كصورة (واتساب / أخرى)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("إغلاق النافذة", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -198,7 +249,6 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
       ),
       body: Column(
         children: [
-          // شريط فلترة النتائج حسب المرحلة
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -234,8 +284,6 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
-          // قائمة النتائج
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -253,7 +301,6 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
 
                 final docs = snapshot.data?.docs ?? [];
 
-                // تطبيق الفلترة المحلية حسب المرحلة
                 final filteredDocs = docs.where((doc) {
                   if (_selectedStageFilter == 'الكل') return true;
                   final data = doc.data() as Map<String, dynamic>;
@@ -273,7 +320,6 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                   );
                 }
 
-                // ترتيب النتائج من الأحدث للأقدم
                 filteredDocs.sort((a, b) {
                   final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
                   final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
@@ -359,14 +405,13 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                               ),
                               Row(
                                 children: [
-                                  // زر شهادة التقدير الفاخر يظهر فقط إذا كانت نسبة الطالب 85% أو أكثر
                                   if (percentage >= 85) ...[
                                     ElevatedButton.icon(
-                                      onPressed: () => _showCertificateDialog(studentName, quizTitle, '$score/$maxScore'),
+                                      onPressed: () => _showCertificateDialog(studentName, quizTitle, score, maxScore),
                                       icon: const Icon(Icons.workspace_premium, size: 16, color: Colors.white),
                                       label: const Text('شهادة تقدير', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFD4AF37), // لون ذهبي فخم للزر
+                                        backgroundColor: const Color(0xFFD4AF37),
                                         elevation: 0,
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
